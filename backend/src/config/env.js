@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const required = ["MONGO_URI", "JWT_SECRET"];
+const railwayClientUrl = process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : "";
 
 for (const key of required) {
   if (!process.env[key]) {
@@ -18,12 +19,12 @@ const normalizeOpenRouterModel = (model) => {
 };
 
 const parseClientUrls = () => {
-  const configured = (process.env.CLIENT_URL || "http://localhost:5173")
+  const configured = (process.env.CLIENT_URL || railwayClientUrl || "http://localhost:5173")
     .split(",")
     .map((url) => url.trim())
     .filter(Boolean);
 
-  return Array.from(new Set([...configured, "http://localhost:5173", "http://127.0.0.1:5173"]));
+  return Array.from(new Set([...configured, railwayClientUrl, "http://localhost:5173", "http://127.0.0.1:5173"].filter(Boolean)));
 };
 
 const clientUrls = parseClientUrls();
@@ -31,7 +32,7 @@ const clientUrls = parseClientUrls();
 export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: process.env.PORT || 5000,
-  clientUrl: clientUrls[0],
+  clientUrl: process.env.CLIENT_URL || railwayClientUrl || clientUrls[0],
   clientUrls,
   mongoUri: process.env.MONGO_URI,
   jwtSecret: process.env.JWT_SECRET,
@@ -45,6 +46,6 @@ export const env = {
   mailFrom: process.env.MAIL_FROM || "WorkOS <no-reply@workos.local>",
   openrouterApiKey: process.env.OPENROUTER_API_KEY || process.env.OPENROUTES_API_KEY,
   openrouterModel: normalizeOpenRouterModel(process.env.OPENROUTER_MODEL || "openrouter/free"),
-  openrouterReferer: process.env.OPENROUTER_REFERER || process.env.CLIENT_URL || "http://localhost:5173",
+  openrouterReferer: process.env.OPENROUTER_REFERER || process.env.CLIENT_URL || railwayClientUrl || "http://localhost:5173",
   openrouterTitle: process.env.OPENROUTER_TITLE || "WorkOS"
 };

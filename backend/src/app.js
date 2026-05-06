@@ -3,6 +3,8 @@ import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import morgan from "morgan";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { env } from "./config/env.js";
 import { errorHandler, notFound } from "./middlewares/errorHandler.js";
 import { aiRoutes } from "./routes/aiRoutes.js";
@@ -14,8 +16,20 @@ import { taskRoutes } from "./routes/taskRoutes.js";
 import { userRoutes } from "./routes/userRoutes.js";
 
 export const app = express();
+const frontendDistPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../frontend/dist");
 
-app.use(helmet());
+app.use(helmet({
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "script-src": ["'self'", "https://accounts.google.com", "https://apis.google.com"],
+      "frame-src": ["'self'", "https://accounts.google.com"],
+      "connect-src": ["'self'", "ws:", "wss:", "https://accounts.google.com", "https://*.googleapis.com"],
+      "img-src": ["'self'", "data:", "https:"]
+    }
+  }
+}));
 app.use(cors({
   origin: (origin, callback) => callback(null, !origin || env.clientUrls.includes(origin)),
   credentials: true
@@ -42,6 +56,13 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/ai", aiRoutes);
+
+if (env.nodeEnv === "production") {
+  app.use(express.static(frontendDistPath));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(frontendDistPath, "index.html"));
+  });
+}
 
 app.use(notFound);
 app.use(errorHandler);
