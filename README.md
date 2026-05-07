@@ -2,6 +2,19 @@
 
 Production-oriented full-stack SaaS task manager for teams. WorkOS combines deterministic project/task management with selective AI assistance for planning, summaries, suggestions, and project-state chat.
 
+## Demo Admin Access
+
+Use this account for project review/demo only.
+
+| Field | Value |
+|---|---|
+| Live App | https://workos-production-0d1c.up.railway.app/ |
+| Role | Admin |
+| Email | demo.admin@workos.com |
+| Password | Demo@12345 |
+
+Note: This is a public demo account created only so reviewers can access the admin dashboard, assign roles, create projects, and test the complete WorkOS flow.
+
 ## Project Snapshot
 
 | Item | Details |
