@@ -27,6 +27,7 @@ export const notificationService = {
     const statusLabel = {
       "todo": "Todo",
       "in-progress": "In Progress",
+      "review": "Review",
       "done": "Done"
     }[status] || status;
 
@@ -36,6 +37,28 @@ export const notificationService = {
       taskId,
       type: "status",
       message: `${actorName} moved "${taskTitle}" to ${statusLabel}.`
+    });
+  },
+
+  async reviewRequested({ userId, projectId, taskId, taskTitle, actorName }) {
+    if (!userId) return null;
+    return notify({
+      userId,
+      projectId,
+      taskId,
+      type: "status",
+      message: `${actorName} submitted "${taskTitle}" for review.`
+    });
+  },
+
+  async taskApproved({ userId, projectId, taskId, taskTitle, actorName }) {
+    if (!userId) return null;
+    return notify({
+      userId,
+      projectId,
+      taskId,
+      type: "status",
+      message: `${actorName} approved "${taskTitle}" as Done.`
     });
   },
 

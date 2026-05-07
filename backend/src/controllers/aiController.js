@@ -30,5 +30,10 @@ export const aiController = {
   summary: asyncHandler(async (req, res) => {
     const result = await aiService.summary(req.params.projectId, req.user);
     res.json({ success: true, data: result });
+  }),
+
+  reviewTask: asyncHandler(async (req, res) => {
+    const result = await aiService.reviewTask(req.params.taskId, req.user);
+    res.json({ success: true, data: result });
   })
 };

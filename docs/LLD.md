@@ -105,8 +105,11 @@ Indexes:
 | `description` | String | No | Up to 8000 chars, AI-generated descriptions supported. |
 | `projectId` | ObjectId(Project) | Yes | Parent project. |
 | `assignedTo` | ObjectId(User) | No | Optional assignee. |
-| `status` | Enum | Yes | `todo`, `in-progress`, `done`. |
+| `status` | Enum | Yes | `todo`, `in-progress`, `review`, `done`. |
 | `dueDate` | Date | No | Used for overdue scans. |
+| `reviewRequestedAt` | Date | No | Set when member submits work for manager review. |
+| `reviewedAt` | Date | No | Set when manager/admin approves Done. |
+| `reviewedBy` | ObjectId(User) | No | Manager/admin who approved the task. |
 | `completedAt` | Date | No | Set when status becomes `done`, cleared if moved out of done. |
 
 Indexes:
@@ -219,16 +222,17 @@ Project chat is deterministic team communication, separate from the AI assistant
 |---|---|
 | `create` | Checks project access, blocks completed projects, validates assignee rule, creates task, notifies assignee, logs, emits `task:created`. |
 | `list` | Lists tasks for an accessible project. |
-| `update` | Checks access, blocks completed projects, enforces member restrictions, updates `completedAt`, notifies changed assignee, logs, emits `task:updated`. |
+| `update` | Checks access, blocks completed projects, enforces review workflow/member restrictions, updates review/completion timestamps, notifies changed assignee or manager, logs, emits `task:updated`. |
 | `remove` | Admin/manager route only; blocks completed projects, deletes task, logs, emits `task:deleted`. |
 
 Member update rule:
 
 | Condition | Result |
 |---|---|
-| Member assigned to task and updates only `status` | Allowed. |
+| Member assigned to task and updates status to `in-progress` or `review` | Allowed. |
 | Member unassigned to task | Forbidden. |
 | Member updates title, description, assignee, due date | Forbidden. |
+| Member tries to mark `done` | Forbidden; member must submit for manager review. |
 | Admin/manager updates task | Allowed after project access check and assignee restrictions. |
 | Project status is `completed` | Task create/update/delete is blocked until project is reopened. |
 
@@ -278,6 +282,7 @@ Manager assignee rule:
 | `chat` | Project/tasks/activity + user question. | Answer, actions, risks. |
 | `dashboardChat` | Role-scoped dashboard overview + question. | Answer, actions, risks. |
 | `summary` | Project/tasks/activity. | Summary, progress, delays, risks, next steps. |
+| `reviewTask` | Submitted task + project criteria. | Recommendation, confidence, checklist, risks, manager action. |
 
 AI reliability controls:
 
@@ -333,6 +338,7 @@ AI reliability controls:
 | POST | `/api/ai/breakdown` | Goal to subtasks. |
 | POST | `/api/ai/description` | Title to task description. |
 | POST | `/api/ai/dashboard/chat` | Role-aware dashboard assistant. |
+| POST | `/api/ai/tasks/:taskId/review` | AI-assisted task review for managers/admins. |
 | GET | `/api/ai/projects/:projectId/suggestions` | Context-aware missing tasks. |
 | GET | `/api/ai/projects/:projectId/summary` | Project summary. |
 | POST | `/api/ai/projects/:projectId/chat` | Project-state assistant. |
@@ -356,7 +362,7 @@ AI reliability controls:
 | `authSchemas.google` | credential min 20 chars. |
 | `projectSchemas.create/update` | enums for category/priority/status/deliveryMode, max arrays for goals/criteria/tags, ObjectId validation. |
 | `projectSchemas.message` | project ObjectId plus trimmed 1-1000 character chat message. |
-| `taskSchemas.create/update` | title length, status enum, ObjectId validation, date coercion. |
+| `taskSchemas.create/update` | title length, `todo`/`in-progress`/`review`/`done` status enum, ObjectId validation, date coercion. |
 | `aiSchemas` | bounded prompt lengths and project id validation. |
 | `userSchemas.updateRole` | role enum only. |
 
@@ -400,7 +406,7 @@ Dates use `z.coerce.date()`. MongoDB ids use a 24-character ObjectId regex.
 | `Projects` | Rich project creation and project list. |
 | `ProjectDetail` | Role-aware project workspace, finish/reopen/delete controls, and data orchestration. |
 | `TaskForm` | Task creation plus AI description generator. |
-| `KanbanBoard` | Drag/drop task status; member drag disabled for unassigned/not-owned tasks. |
+| `KanbanBoard` | Task status workflow with Todo, In Progress, Review, Done; members submit review, managers approve and can run AI review. |
 | `MemberManager` | Add/remove project members based on role. |
 | `ProjectChat` | Real-time project discussion between manager and members. |
 | `AiPanel` | Project AI breakdown, suggestions, summary, and chat. |

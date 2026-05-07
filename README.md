@@ -39,8 +39,8 @@ Production-oriented full-stack SaaS task manager for teams. WorkOS combines dete
 | RBAC | Admin, manager, member permissions with middleware and service rules | Done | `backend/src/middlewares/rbac.js`, `backend/src/services/taskService.js` |
 | Projects | Rich project creation with category, priority, status, delivery mode, lead, dates, goals, success criteria, tags | Done | `backend/src/models/Project.js`, `frontend/src/pages/Projects.jsx` |
 | Team management | Admin/manager can add/remove users; managers can add only member users | Done | `backend/src/services/projectService.js`, `frontend/src/components/MemberManager.jsx` |
-| Tasks | Create, assign, move status, due dates, completion timestamp | Done | `backend/src/services/taskService.js`, `frontend/src/components/TaskForm.jsx` |
-| Kanban | Drag/drop Todo, In Progress, Done; member drag restricted to own assigned tasks | Done | `frontend/src/components/KanbanBoard.jsx` |
+| Tasks | Create, assign, move status, submit for manager review, approve Done, due dates, completion timestamp | Done | `backend/src/services/taskService.js`, `frontend/src/components/TaskForm.jsx` |
+| Kanban | Todo, In Progress, Review, Done; members submit review, managers approve | Done | `frontend/src/components/KanbanBoard.jsx` |
 | Project workspace | Simple project flow, finish/reopen action, delete action, team chat, activity, AI panel | Done | `frontend/src/pages/ProjectDetail.jsx`, `frontend/src/components/ProjectChat.jsx` |
 | Dashboards | Separate admin, manager, and member dashboards with different layouts | Done | `frontend/src/components/dashboard/*` |
 | Analytics | Completion rate, pending, overdue, average completion time, workload, risk signals | Done | `backend/src/services/dashboardService.js` |
@@ -51,6 +51,7 @@ Production-oriented full-stack SaaS task manager for teams. WorkOS combines dete
 | AI description | Task title to description, steps, edge cases, acceptance criteria | Done | `frontend/src/components/TaskForm.jsx` |
 | AI suggestions | Context-aware missing task suggestions | Done | `frontend/src/components/AiPanel.jsx` |
 | AI chat | Project and dashboard AI assistant using current state | Done | `backend/src/controllers/aiController.js` |
+| AI task review | Manager can ask AI to review a submitted task and suggest approve/change/manual review | Done | `backend/src/services/aiService.js`, `frontend/src/components/KanbanBoard.jsx` |
 | AI summary | Human-readable progress, delays, risks, next steps | Done | `backend/src/services/aiService.js` |
 
 ## Documentation Pack
@@ -141,7 +142,8 @@ WorkOS/
 | Remove project members | Yes | Member users only | No |
 | Create/assign/delete tasks | Yes | Yes, assignee must be member | No |
 | Move any project task | Yes | Yes | No |
-| Move assigned task status | Yes | Yes | Yes |
+| Submit assigned task for review | Yes | Yes | Yes |
+| Approve task as Done | Yes | Yes | No |
 | Use project team chat | Yes | Yes | Yes, with project access |
 | Update user roles | Yes | No | No |
 | Use AI assistant | Yes | Yes | Yes |
@@ -184,6 +186,7 @@ WorkOS/
 | POST | `/api/ai/breakdown` | `goal`, optional `projectId` | `tasks[]` with title, description, priority, estimatedHours, acceptanceCriteria. |
 | POST | `/api/ai/description` | `title`, optional `projectId` | description, steps, edge cases, acceptance criteria. |
 | POST | `/api/ai/dashboard/chat` | `question` | Dashboard-context answer, actions, risks. |
+| POST | `/api/ai/tasks/:taskId/review` | task id | AI review recommendation for manager approval. |
 | GET | `/api/ai/projects/:projectId/suggestions` | project id | Suggested missing tasks. |
 | POST | `/api/ai/projects/:projectId/chat` | project id, question | Project-context answer, recommended actions, risks. |
 | GET | `/api/ai/projects/:projectId/summary` | project id | Summary, progress, delays, risks, next steps. |

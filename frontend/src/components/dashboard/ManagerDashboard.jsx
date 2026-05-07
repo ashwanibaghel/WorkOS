@@ -66,6 +66,7 @@ const KanbanCard = ({ task, drag }) => (
 const COLUMNS = [
   { id: "todo", title: "To Do", color: "var(--ds-muted)" },
   { id: "in-progress", title: "In Progress", color: "var(--ds-warning)" },
+  { id: "review", title: "Review", color: "#7c3aed" },
   { id: "done", title: "Done", color: "var(--ds-success)" },
 ];
 

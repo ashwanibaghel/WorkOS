@@ -142,6 +142,20 @@ const summarySchema = {
   }
 };
 
+const taskReviewSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["recommendation", "confidence", "summary", "checklist", "risks", "suggestedManagerAction"],
+  properties: {
+    recommendation: { type: "string", enum: ["approve", "changes_requested", "needs_human_review"] },
+    confidence: { type: "number", minimum: 0, maximum: 100 },
+    summary: { type: "string" },
+    checklist: { type: "array", items: { type: "string" } },
+    risks: { type: "array", items: { type: "string" } },
+    suggestedManagerAction: { type: "string" }
+  }
+};
+
 const getProjectContext = async (projectId, user) => {
   const project = await assertProjectAccess(projectId, user);
   const tasks = await Task.find({ projectId })
@@ -299,5 +313,37 @@ export const aiService = {
         "Summarize project health for a manager. Cover progress, delays, risks, and next steps in concise human language.",
       input: JSON.stringify(context)
     });
+  },
+
+  async reviewTask(taskId, user) {
+    if (!["admin", "manager"].includes(user.role)) {
+      throw new AppError("Only admins and managers can run AI task review", 403);
+    }
+
+    const task = await Task.findById(taskId)
+      .populate("projectId", "name description goals successCriteria")
+      .populate("assignedTo", "name role")
+      .lean();
+    if (!task) throw new AppError("Task not found", 404);
+    await assertProjectAccess(task.projectId._id, user);
+
+    const result = await structuredResponse({
+      name: "task_review",
+      schema: taskReviewSchema,
+      instructions:
+        "Review a submitted task for a manager. Use only the provided project and task context. If evidence is missing, do not claim it is complete. Recommend approve only when the task description and acceptance signals are clear enough; otherwise request changes or human review.",
+      input: JSON.stringify({ task, project: task.projectId })
+    });
+
+    await activityService.log({
+      action: "ai.task_review",
+      entityType: "ai",
+      userId: user._id,
+      projectId: task.projectId._id,
+      entityId: task._id,
+      metadata: { recommendation: result.recommendation, confidence: result.confidence }
+    });
+
+    return result;
   }
 };

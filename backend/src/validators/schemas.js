@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid MongoDB ObjectId");
-const status = z.enum(["todo", "in-progress", "done"]);
+const status = z.enum(["todo", "in-progress", "review", "done"]);
 const projectCategory = z.enum(["engineering", "product", "design", "marketing", "operations", "research", "client", "other"]);
 const projectPriority = z.enum(["low", "medium", "high", "critical"]);
 const projectStatus = z.enum(["planning", "active", "on-hold", "completed"]);
@@ -136,6 +136,9 @@ export const aiSchemas = {
   }),
   dashboardChat: z.object({
     body: z.object({ question: z.string().min(1).max(1000) })
+  }),
+  taskReview: z.object({
+    params: z.object({ taskId: objectId })
   })
 };
 

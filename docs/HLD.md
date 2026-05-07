@@ -217,6 +217,7 @@ flowchart LR
 |---|---|
 | Task breakdown | AI returns candidate tasks; actual task creation uses `POST /api/tasks`. |
 | Description generator | AI drafts text; user/manager decides whether to save it. |
+| Task review | AI recommends approve/change/manual review; manager/admin makes final Done decision. |
 | Suggestions | AI proposes missing work; no automatic database writes. |
 | Project chat | AI answers from authorized project context only. |
 | Dashboard chat | AI answers from role-scoped dashboard overview only. |

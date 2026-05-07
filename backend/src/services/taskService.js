@@ -6,7 +6,10 @@ import { activityService } from "./activityService.js";
 import { notificationService } from "./notificationService.js";
 import { assertProjectAccess } from "./projectService.js";
 
-const populateTask = (query) => query.populate("assignedTo", "name email role").populate("projectId", "name");
+const populateTask = (query) => query
+  .populate("assignedTo", "name email role")
+  .populate("reviewedBy", "name email role")
+  .populate("projectId", "name");
 
 const assertMemberCanUpdate = (task, user, updates) => {
   if (user.role !== "member") return;
@@ -16,6 +19,15 @@ const assertMemberCanUpdate = (task, user, updates) => {
   const assigned = task.assignedTo && String(task.assignedTo) === String(user._id);
   if (!assigned || keys.some((key) => !allowedKeys.includes(key))) {
     throw new AppError("Members can only update status for their assigned tasks", 403);
+  }
+  if (updates.status && !["in-progress", "review"].includes(updates.status)) {
+    throw new AppError("Members submit completed work for manager review instead of marking Done", 403);
+  }
+  if (task.status === "done") {
+    throw new AppError("Completed tasks can only be reopened by a manager", 403);
+  }
+  if (updates.status === "review" && task.status !== "in-progress") {
+    throw new AppError("Start the task before submitting it for review", 400);
   }
 };
 
@@ -84,8 +96,22 @@ export const taskService = {
     const previousAssignee = task.assignedTo ? String(task.assignedTo) : null;
     const previousStatus = task.status;
     Object.assign(task, updates);
-    if (updates.status === "done" && !task.completedAt) task.completedAt = new Date();
-    if (updates.status && updates.status !== "done") task.completedAt = null;
+    if (updates.status === "review") {
+      task.reviewRequestedAt = new Date();
+      task.reviewedAt = null;
+      task.reviewedBy = null;
+      task.completedAt = null;
+    }
+    if (updates.status === "done") {
+      task.completedAt = task.completedAt || new Date();
+      task.reviewedAt = new Date();
+      task.reviewedBy = user._id;
+    }
+    if (updates.status && !["done", "review"].includes(updates.status)) {
+      task.completedAt = null;
+      task.reviewedAt = null;
+      task.reviewedBy = null;
+    }
     await task.save();
 
     const fullTask = await populateTask(Task.findById(task._id));
@@ -100,7 +126,24 @@ export const taskService = {
 
     if (updates.status && updates.status !== previousStatus) {
       const managerId = project.projectManager?._id || project.projectManager || project.createdBy?._id || project.createdBy;
-      if (managerId && String(managerId) !== String(user._id)) {
+      const assigneeId = task.assignedTo ? String(task.assignedTo) : null;
+      if (updates.status === "review" && managerId && String(managerId) !== String(user._id)) {
+        await notificationService.reviewRequested({
+          userId: managerId,
+          projectId: task.projectId,
+          taskId: task._id,
+          taskTitle: task.title,
+          actorName: user.name
+        });
+      } else if (updates.status === "done" && assigneeId && assigneeId !== String(user._id)) {
+        await notificationService.taskApproved({
+          userId: assigneeId,
+          projectId: task.projectId,
+          taskId: task._id,
+          taskTitle: task.title,
+          actorName: user.name
+        });
+      } else if (managerId && String(managerId) !== String(user._id)) {
         await notificationService.statusChange({
           userId: managerId,
           projectId: task.projectId,

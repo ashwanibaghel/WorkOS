@@ -99,7 +99,7 @@ export const dashboardService = {
         .populate("assignedTo", "name email role")
         .populate("projectId", "name")
         .lean(),
-      Task.find({ ...scope, assignedTo: user._id, status: { $ne: "done" } })
+      Task.find({ ...scope, assignedTo: user._id, status: { $nin: ["done", "review"] } })
         .sort({ dueDate: 1, updatedAt: -1 })
         .limit(8)
         .select("title description status dueDate projectId assignedTo")
@@ -129,7 +129,7 @@ export const dashboardService = {
       User.countDocuments()
     ]);
 
-    const statusBreakdown = { todo: 0, "in-progress": 0, done: 0 };
+    const statusBreakdown = { todo: 0, "in-progress": 0, review: 0, done: 0 };
     for (const item of statusCounts) statusBreakdown[item._id] = item.count;
 
     const completionRate = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -143,6 +143,7 @@ export const dashboardService = {
     const performanceSeries = [
       { label: "Todo", value: statusBreakdown.todo, color: "#b7791f" },
       { label: "In Progress", value: statusBreakdown["in-progress"], color: "#1d7a8c" },
+      { label: "Review", value: statusBreakdown.review, color: "#7c3aed" },
       { label: "Done", value: statusBreakdown.done, color: "#27825f" }
     ];
 

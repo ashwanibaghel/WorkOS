@@ -19,6 +19,8 @@ export const ProjectDetail = () => {
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [aiReviewResults, setAiReviewResults] = useState({});
+  const [aiReviewingId, setAiReviewingId] = useState("");
   const [error, setError] = useState("");
 
   const canManage = ["admin", "manager"].includes(user.role);
@@ -65,11 +67,12 @@ export const ProjectDetail = () => {
     const now = new Date();
     const todo = tasks.filter((task) => task.status === "todo").length;
     const inProgress = tasks.filter((task) => task.status === "in-progress").length;
+    const review = tasks.filter((task) => task.status === "review").length;
     const done = tasks.filter((task) => task.status === "done").length;
     const overdue = tasks.filter((task) => task.status !== "done" && task.dueDate && new Date(task.dueDate) < now).length;
     const unassigned = tasks.filter((task) => !task.assignedTo).length;
     const completion = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
-    return { todo, inProgress, done, overdue, unassigned, completion };
+    return { todo, inProgress, review, done, overdue, unassigned, completion };
   }, [tasks]);
   const roleSummary = useMemo(() => roleCopy(user.role, user.name), [user.role, user.name]);
 
@@ -91,6 +94,16 @@ export const ProjectDetail = () => {
   const updateTask = async (taskId, updates) => {
     const res = await api.patch(`/tasks/${taskId}`, updates);
     setTasks((items) => items.map((item) => (item._id === taskId ? res.data.task : item)));
+  };
+
+  const runAiReview = async (task) => {
+    setAiReviewingId(task._id);
+    try {
+      const res = await api.post(`/ai/tasks/${task._id}/review`);
+      setAiReviewResults((items) => ({ ...items, [task._id]: res.data }));
+    } finally {
+      setAiReviewingId("");
+    }
   };
 
   const toggleProjectStatus = async () => {
@@ -145,6 +158,7 @@ export const ProjectDetail = () => {
       <div className="project-kpi-row">
         <ProjectKpi icon={<ListTodo size={16} />} label="Todo" value={taskStats.todo} />
         <ProjectKpi icon={<Clock size={16} />} label="In progress" value={taskStats.inProgress} />
+        <ProjectKpi icon={<Flag size={16} />} label="Review" value={taskStats.review} danger={taskStats.review > 0} />
         <ProjectKpi icon={<CheckCircle2 size={16} />} label="Done" value={taskStats.done} />
         <ProjectKpi icon={<AlertTriangle size={16} />} label="Overdue" value={taskStats.overdue} danger={taskStats.overdue > 0} />
         <ProjectKpi icon={<Users size={16} />} label="Unassigned" value={taskStats.unassigned} danger={taskStats.unassigned > 0} />
@@ -209,6 +223,9 @@ export const ProjectDetail = () => {
           <KanbanBoard
             tasks={tasks}
             onUpdateTask={updateTask}
+            onAiReviewTask={canManage ? runAiReview : null}
+            aiReviewResults={aiReviewResults}
+            aiReviewingId={aiReviewingId}
             canManage={canManage && project.status !== "completed"}
             currentUser={user}
             locked={project.status === "completed"}
@@ -258,14 +275,14 @@ const roleCopy = (role, name) => {
     return {
       title: "Manager workspace",
       subtitle: name,
-      points: ["Plan tasks", "Assign owners", "Discuss in chat", "Finish project"]
+      points: ["Plan tasks", "Assign owners", "Review submissions", "Finish project"]
     };
   }
   if (role === "member") {
     return {
       title: "Member workspace",
       subtitle: name,
-      points: ["Read context", "Work assigned tasks", "Discuss in chat", "Update status"]
+      points: ["Read context", "Work assigned tasks", "Submit review", "Discuss in chat"]
     };
   }
   return {
@@ -283,6 +300,7 @@ const activityLabel = (action) => ({
   "project.message_created": "Chat message sent",
   "task.created": "Task created",
   "task.updated": "Task updated",
+  "ai.task_review": "AI task review",
   "task.deleted": "Task deleted",
   "ai.task_breakdown": "AI breakdown generated",
   "ai.dashboard_chat": "AI assistant used"

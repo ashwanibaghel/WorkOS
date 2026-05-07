@@ -1,10 +1,11 @@
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import { formatDistanceToNow } from "date-fns";
-import { CheckCircle2, PlayCircle, RotateCcw } from "lucide-react";
+import { CheckCircle2, PlayCircle, RotateCcw, Sparkles } from "lucide-react";
 
 const columns = [
   { id: "todo", title: "Todo" },
   { id: "in-progress", title: "In Progress" },
+  { id: "review", title: "Review" },
   { id: "done", title: "Done" }
 ];
 
@@ -15,25 +16,54 @@ const previewDescription = (description = "") => {
 
 const sameId = (left, right) => String(left || "") === String(right || "");
 
-export const KanbanBoard = ({ tasks, onUpdateTask, canManage = false, currentUser, locked = false }) => {
+export const KanbanBoard = ({
+  tasks,
+  onUpdateTask,
+  onAiReviewTask,
+  aiReviewResults = {},
+  aiReviewingId = "",
+  canManage = false,
+  currentUser,
+  locked = false
+}) => {
+  const isManager = ["admin", "manager"].includes(currentUser?.role);
+
+  const allowedStatusTargets = (task) => {
+    if (locked) return [];
+    if (isManager) {
+      if (task.status === "todo") return ["in-progress"];
+      if (task.status === "in-progress") return ["review", "done"];
+      if (task.status === "review") return ["done", "in-progress"];
+      if (task.status === "done") return ["in-progress"];
+      return [];
+    }
+    if (!sameId(task.assignedTo?._id, currentUser?._id)) return [];
+    if (task.status === "todo") return ["in-progress"];
+    if (task.status === "in-progress") return ["review"];
+    return [];
+  };
+
   const canMoveTask = (task) => {
-    if (locked) return false;
-    if (canManage) return true;
-    return sameId(task.assignedTo?._id, currentUser?._id);
+    if (canManage) return !locked;
+    return allowedStatusTargets(task).length > 0;
   };
 
   const onDragEnd = ({ destination, draggableId }) => {
     if (!destination) return;
     const task = tasks.find((item) => item._id === draggableId);
     if (!task || !canMoveTask(task)) return;
+    if (!allowedStatusTargets(task).includes(destination.droppableId)) return;
     onUpdateTask(draggableId, { status: destination.droppableId });
   };
 
   const statusActionsFor = (task) => {
-    if (!canMoveTask(task)) return [];
-    if (task.status === "todo") return [{ status: "in-progress", label: "Start", icon: <PlayCircle size={14} /> }];
-    if (task.status === "in-progress") return [{ status: "done", label: "Done", icon: <CheckCircle2 size={14} /> }];
-    return [{ status: "in-progress", label: "Reopen", icon: <RotateCcw size={14} /> }];
+    const targets = allowedStatusTargets(task);
+    const actionMap = {
+      "in-progress": { status: "in-progress", label: task.status === "done" || task.status === "review" ? "Reopen" : "Start", icon: task.status === "todo" ? <PlayCircle size={14} /> : <RotateCcw size={14} /> },
+      "review": { status: "review", label: "Send review", icon: <Sparkles size={14} /> },
+      "done": { status: "done", label: task.status === "review" ? "Approve" : "Mark done", icon: <CheckCircle2 size={14} /> }
+    };
+    return targets.map((status) => actionMap[status]).filter(Boolean);
   };
 
   const updateStatus = (event, taskId, status) => {
@@ -70,9 +100,38 @@ export const KanbanBoard = ({ tasks, onUpdateTask, canManage = false, currentUse
                             <span>{task.assignedTo?.name || "Unassigned"}</span>
                             {task.dueDate && <span>Due {formatDistanceToNow(new Date(task.dueDate), { addSuffix: true })}</span>}
                           </div>
-                          {statusActionsFor(task).length > 0 && (
+                          {task.status === "review" && (
+                            <div className="review-badge">
+                              {isManager ? "Waiting for manager approval" : "Submitted for review"}
+                            </div>
+                          )}
+                          {task.status === "review" && isManager && onAiReviewTask && (
+                            <button
+                              type="button"
+                              className="ai-review-button"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                onAiReviewTask(task);
+                              }}
+                              onPointerDown={(event) => event.stopPropagation()}
+                              disabled={aiReviewingId === task._id}
+                            >
+                              <Sparkles size={14} />
+                              {aiReviewingId === task._id ? "Reviewing..." : "AI review"}
+                            </button>
+                          )}
+                          {aiReviewResults[task._id] && (
+                            <div className={`ai-review-result recommendation-${aiReviewResults[task._id].recommendation}`}>
+                              <strong>{aiReviewLabel(aiReviewResults[task._id].recommendation)}</strong>
+                              <p>{aiReviewResults[task._id].summary}</p>
+                            </div>
+                          )}
+                          {(() => {
+                            const actions = statusActionsFor(task);
+                            return actions.length > 0 && (
                             <div className="task-status-actions">
-                              {statusActionsFor(task).map((action) => (
+                              {actions.map((action) => (
                                 <button
                                   key={action.status}
                                   type="button"
@@ -84,7 +143,8 @@ export const KanbanBoard = ({ tasks, onUpdateTask, canManage = false, currentUse
                                 </button>
                               ))}
                             </div>
-                          )}
+                            );
+                          })()}
                         </article>
                       )}
                     </Draggable>
@@ -99,3 +159,9 @@ export const KanbanBoard = ({ tasks, onUpdateTask, canManage = false, currentUse
     </DragDropContext>
   );
 };
+
+const aiReviewLabel = (recommendation) => ({
+  approve: "AI says: approve",
+  changes_requested: "AI says: changes needed",
+  needs_human_review: "AI says: review manually"
+}[recommendation] || "AI review");

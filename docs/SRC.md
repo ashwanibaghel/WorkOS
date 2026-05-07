@@ -163,12 +163,14 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 |---|---|---:|---|
 | FR-TASK-01 | Admin/manager can create tasks. | Must | `POST /api/tasks` |
 | FR-TASK-02 | Task supports title, description, project, assignee, status, due date. | Must | `Task` schema. |
-| FR-TASK-03 | Task status supports Todo, In Progress, Done. | Must | `status` enum. |
+| FR-TASK-03 | Task status supports Todo, In Progress, Review, Done. | Must | `status` enum. |
 | FR-TASK-04 | Completion timestamp is set when task becomes Done. | Must | `taskService.update`. |
-| FR-TASK-05 | Member can update only status of assigned tasks. | Must | `assertMemberCanUpdate`. |
+| FR-TASK-05 | Member can update only assigned tasks and must submit completed work to Review instead of Done. | Must | `assertMemberCanUpdate`. |
 | FR-TASK-06 | Manager can assign tasks only to member users. | Must | `assertAssignableAssignee`. |
 | FR-TASK-07 | Task changes emit real-time project events. | Must | Socket.IO project rooms. |
 | FR-TASK-08 | Completed projects block task creation, movement, and deletion. | Must | `assertProjectOpenForTasks`. |
+| FR-TASK-09 | Manager/admin receives notification when member submits a task for review. | Must | `notificationService.reviewRequested`. |
+| FR-TASK-10 | Manager/admin approves reviewed task as Done. | Must | `taskService.update`. |
 
 ### 9.7 Dashboard and Analytics
 
@@ -211,6 +213,7 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | FR-AI-04 | Project Chat | Project state + question | Answer, actions, risks | Access checked before context. |
 | FR-AI-05 | Dashboard Chat | Role dashboard context + question | Answer, actions, risks | Role-scoped overview only. |
 | FR-AI-06 | Project Summary | Project, tasks, activity | Summary, progress, delays, risks, next steps | Summarizes deterministic state. |
+| FR-AI-07 | AI Task Review | Submitted task + project criteria | Recommendation, confidence, checklist, risks | AI advises; manager/admin approves. |
 
 ## 10. Non-Functional Requirements
 
@@ -249,7 +252,7 @@ flowchart LR
 |---|---|---|
 | User | Authenticated actor and RBAC identity. | name, email, password, role, authProvider, googleId, isEmailVerified |
 | Project | Team workspace and planning container. | name, description, category, priority, status, deliveryMode, projectManager, dates, goals, successCriteria, tags, createdBy, members |
-| Task | Trackable work item. | title, description, projectId, assignedTo, status, dueDate, completedAt |
+| Task | Trackable work item with review workflow. | title, description, projectId, assignedTo, status, dueDate, reviewRequestedAt, reviewedAt, reviewedBy, completedAt |
 | ProjectMessage | Project-level team discussion. | projectId, sender, message, createdAt |
 | ActivityLog | Audit trail. | action, entityType, entityId, userId, projectId, metadata |
 | Notification | User-facing alert. | userId, projectId, taskId, type, message, read |
