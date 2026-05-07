@@ -13,7 +13,7 @@ Use this account for project review/demo only.
 | Email | demo.admin@workos.com |
 | Password | Demo@12345 |
 
-Note: This is a public demo account created only so reviewers can access the admin dashboard, assign roles, create projects, and test the complete WorkOS flow.
+Note: This is a public demo account created only so reviewers can access the admin dashboard, assign roles, create projects, and test the complete WorkOS flow. Reviewers can also click the `Use Demo Admin` button on the login screen for one-click access.
 
 ## Project Snapshot
 

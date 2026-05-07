@@ -5,6 +5,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
 import "../landing-styles.css";
 
+const demoAdminCredentials = {
+  email: "demo.admin@workos.com",
+  password: "Demo@12345"
+};
+
 const passwordRules = [
   { label: "Minimum 8 characters", test: (value) => value.length >= 8 },
   { label: "One uppercase letter", test: (value) => /[A-Z]/.test(value) },
@@ -21,6 +26,7 @@ export const Login = ({ mode }) => {
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const isStrongPassword = passwordRules.every((rule) => rule.test(form.password));
   const passwordsMatch = !isSignup || (form.passwordConfirm && form.password === form.passwordConfirm);
@@ -49,6 +55,20 @@ export const Login = ({ mode }) => {
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handleDemoAdminLogin = async () => {
+    setError("");
+    setDemoLoading(true);
+    setForm((current) => ({ ...current, ...demoAdminCredentials }));
+    try {
+      await login(demoAdminCredentials, "login");
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -89,6 +109,18 @@ export const Login = ({ mode }) => {
         <div className="modern-auth-divider">
           <span>or continue with email</span>
         </div>
+
+        {!isSignup && (
+          <button
+            className="modern-demo-btn"
+            type="button"
+            onClick={handleDemoAdminLogin}
+            disabled={demoLoading}
+          >
+            <span>{demoLoading ? "Opening demo admin..." : "Use Demo Admin"}</span>
+            <small>For project review only</small>
+          </button>
+        )}
 
         <form className="modern-auth-form" onSubmit={submit}>
           {isSignup && (
