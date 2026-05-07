@@ -57,21 +57,17 @@ export const authService = {
       email,
       password,
       role: usersCount === 0 ? "admin" : "member",
-      isEmailVerified: false
+      isEmailVerified: true,
+      emailVerifiedAt: new Date()
     });
     const trustedUser = await ensureAdminExists(user);
-    const verification = await sendVerification(trustedUser);
-    return { user: trustedUser, ...verification };
+    return { user: trustedUser, token: signToken(trustedUser) };
   },
 
   async login({ email, password }) {
     const user = await User.findOne({ email }).select("+password +emailVerificationTokenHash");
     if (!user || user.authProvider !== "local" || !user.password || !(await user.comparePassword(password))) {
       throw new AppError("Invalid email or password", 401);
-    }
-
-    if (user.isEmailVerified === false && user.emailVerificationTokenHash) {
-      throw new AppError("Please verify your email before logging in", 403, { code: "EMAIL_NOT_VERIFIED" });
     }
 
     const trustedUser = await ensureAdminExists(user);
