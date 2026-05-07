@@ -1,229 +1,246 @@
 # WorkOS - AI-Assisted Team Task Manager
 
-Production-level full-stack project management system with RBAC, real-time collaboration, analytics, audit logs, notifications, and practical AI assistance powered by OpenRouter.
+Production-oriented full-stack SaaS task manager for teams. WorkOS combines deterministic project/task management with selective AI assistance for planning, summaries, suggestions, and project-state chat.
 
-## 1. Project Snapshot
+## Project Snapshot
 
 | Item | Details |
 |---|---|
-| Project Name | WorkOS - AI-Assisted Team Task Manager |
-| Project Type | Full-stack SaaS-style task management application |
-| Primary Goal | Demonstrate production-ready architecture, clean backend design, scalable patterns, and meaningful AI integration |
-| Frontend | React, Vite, Socket.IO Client, `@hello-pangea/dnd` |
-| Backend | Node.js, Express, Socket.IO, JWT, Zod |
-| Database | MongoDB Atlas, Mongoose |
-| AI Provider | OpenRouter Chat Completions API with structured JSON outputs |
-| Deployment | Railway backend, Vercel or Railway frontend, MongoDB Atlas database |
-| Status | Implemented core product with professional documentation |
+| Product | WorkOS - AI-Assisted Team Task Manager |
+| Live App | https://workos-production-0d1c.up.railway.app/ |
+| Health Check | https://workos-production-0d1c.up.railway.app/health |
+| Repository | https://github.com/ashwanibaghel/WorkOS |
+| Frontend | React, Vite, Socket.IO Client, `@hello-pangea/dnd`, Lucide icons |
+| Backend | Node.js, Express, Socket.IO, JWT, Zod, Helmet, rate limiting |
+| Database | MongoDB Atlas with Mongoose schemas and indexes |
+| AI Provider | OpenRouter Chat Completions API |
+| Deployment | Single Railway service serving both Express API and Vite build |
+| Architecture | Controller -> Service -> Model with middleware-based auth, validation, and RBAC |
 
-## 2. Why This Project Is Interview-Worthy
+## Why This Project Matters
 
-| Area | What It Demonstrates |
+| Engineering Area | What It Demonstrates |
 |---|---|
-| Backend Architecture | Controller -> Service -> Model layering with isolated business logic. |
-| Security | JWT auth, password hashing, email verification, RBAC middleware, input validation, no hardcoded secrets. |
-| Real-Time System Design | Project rooms and user notification rooms with Socket.IO. |
-| Data Modeling | Relational-style document schemas using Mongoose references and indexes. |
-| AI Integration | AI is used only for reasoning-heavy workflows, not deterministic rules. |
-| Observability | Activity logs and consistent error handling. |
-| Analytics | Completion rate, overdue tasks, average completion time, team workload. |
-| Deployment Readiness | Env examples, Railway config, Vercel rewrite config, setup instructions. |
+| Backend design | Thin controllers, reusable services, Mongoose models, centralized error handling. |
+| Security | JWT auth, bcrypt password hashing, email verification tokens, Google login, RBAC, validation, no committed secrets. |
+| Real-time architecture | Socket.IO project rooms and user notification rooms. |
+| Product thinking | Admin, manager, and member dashboards are role-specific instead of one shared generic screen. |
+| AI boundary | AI is advisory only; deterministic backend logic owns permissions, writes, metrics, and state transitions. |
+| Deployment readiness | Root Railway config supports a monorepo build and serves the frontend from the backend in production. |
+| Documentation | SRC, HLD, and LLD documents explain requirements, architecture, APIs, schemas, and flows. |
 
-## 3. Feature Matrix
+## Feature Matrix
 
-| Feature Area | Capability | Status | Key Files |
+| Area | Capability | Status | Main Files |
 |---|---|---:|---|
-| Authentication | Signup, login, email verification, strong password policy, Google OAuth, JWT session, current user | Done | `backend/src/services/authService.js`, `frontend/src/state/AuthContext.jsx` |
-| RBAC | Admin, manager, member permission guards | Done | `backend/src/middlewares/rbac.js`, `backend/src/services/taskService.js` |
-| Projects | Create, list, view, update, delete | Done | `backend/src/services/projectService.js`, `frontend/src/pages/Projects.jsx` |
-| Members | Add/remove project members | Done | `backend/src/routes/projectRoutes.js`, `frontend/src/components/MemberManager.jsx` |
-| Tasks | Create, assign, update status, delete | Done | `backend/src/services/taskService.js`, `frontend/src/components/KanbanBoard.jsx` |
-| Kanban | Drag/drop Todo, In Progress, Done | Done | `frontend/src/components/KanbanBoard.jsx` |
-| Notifications | Assignment and overdue notifications | Done | `backend/src/services/notificationService.js` |
-| Real-Time | Task and notification socket events | Done | `backend/src/socket/socket.js`, `frontend/src/api/socket.js` |
-| Activity Log | Audit trail for project/task/member actions | Done | `backend/src/services/activityService.js` |
-| Dashboard | Metrics and workload analytics | Done | `backend/src/services/dashboardService.js`, `frontend/src/pages/Dashboard.jsx` |
-| AI Breakdown | Natural language goal to subtasks | Done | `backend/src/services/aiService.js` |
-| AI Description | Task title to detailed task plan | Done | `frontend/src/components/TaskForm.jsx` |
-| AI Suggestions | Context-aware missing task suggestions | Done | `frontend/src/components/AiPanel.jsx` |
-| AI Chat | Project-state assistant | Done | `backend/src/controllers/aiController.js` |
-| AI Summary | Progress, delays, risks, next steps | Done | `backend/src/services/aiService.js` |
+| Authentication | Signup, login, email verification, Google Identity login, JWT session, current user | Done | `backend/src/services/authService.js`, `frontend/src/pages/Login.jsx` |
+| Password policy | Minimum 8 chars, uppercase, number, special character, confirm password | Done | `backend/src/validators/schemas.js`, `frontend/src/pages/Login.jsx` |
+| Role model | First user becomes admin, later users default to member, admin can update roles | Done | `backend/src/services/authService.js`, `backend/src/services/userService.js` |
+| RBAC | Admin, manager, member permissions with middleware and service rules | Done | `backend/src/middlewares/rbac.js`, `backend/src/services/taskService.js` |
+| Projects | Rich project creation with category, priority, status, delivery mode, lead, dates, goals, success criteria, tags | Done | `backend/src/models/Project.js`, `frontend/src/pages/Projects.jsx` |
+| Team management | Admin/manager can add/remove users; managers can add only member users | Done | `backend/src/services/projectService.js`, `frontend/src/components/MemberManager.jsx` |
+| Tasks | Create, assign, move status, due dates, completion timestamp | Done | `backend/src/services/taskService.js`, `frontend/src/components/TaskForm.jsx` |
+| Kanban | Drag/drop Todo, In Progress, Done; member drag restricted to own assigned tasks | Done | `frontend/src/components/KanbanBoard.jsx` |
+| Dashboards | Separate admin, manager, and member dashboards with different layouts | Done | `frontend/src/components/dashboard/*` |
+| Analytics | Completion rate, pending, overdue, average completion time, workload, risk signals | Done | `backend/src/services/dashboardService.js` |
+| Notifications | Assignment and overdue notifications with unread count | Done | `backend/src/services/notificationService.js` |
+| Real-time | Task updates and notification push through Socket.IO | Done | `backend/src/socket/socket.js`, `frontend/src/api/socket.js` |
+| Activity logs | Project, task, member, and AI actions logged | Done | `backend/src/services/activityService.js` |
+| AI breakdown | Natural language goal to structured subtasks | Done | `backend/src/services/aiService.js` |
+| AI description | Task title to description, steps, edge cases, acceptance criteria | Done | `frontend/src/components/TaskForm.jsx` |
+| AI suggestions | Context-aware missing task suggestions | Done | `frontend/src/components/AiPanel.jsx` |
+| AI chat | Project and dashboard AI assistant using current state | Done | `backend/src/controllers/aiController.js` |
+| AI summary | Human-readable progress, delays, risks, next steps | Done | `backend/src/services/aiService.js` |
 
-## 4. Documentation Pack
+## Documentation Pack
 
 | Document | Purpose |
 |---|---|
-| [SRC - Software Requirements and Context](docs/SRC.md) | Complete requirement, scope, role, feature, and success-criteria document. |
-| [HLD - High-Level Design](docs/HLD.md) | System architecture, component diagrams, deployment design, security, scalability. |
-| [LLD - Low-Level Design](docs/LLD.md) | Module-level design, schema details, APIs, services, frontend components, flows. |
+| [SRC - Software Requirements and Context](docs/SRC.md) | Product scope, user roles, requirements, success criteria, deployment context. |
+| [HLD - High-Level Design](docs/HLD.md) | System architecture, component boundaries, deployment topology, security, scalability. |
+| [LLD - Low-Level Design](docs/LLD.md) | Schemas, services, routes, validation, frontend components, socket events, flows. |
 
-## 5. Architecture at a Glance
+## Architecture Overview
 
 ```mermaid
 flowchart LR
-  User["User Browser"] --> Frontend["React Vite Frontend"]
-  Frontend --> API["Express REST API"]
-  Frontend <--> Socket["Socket.IO"]
+  Browser["Browser"] --> Railway["Railway: Express + Static React"]
+  Railway --> API["Express REST API"]
+  Railway <--> Socket["Socket.IO"]
   API --> Services["Service Layer"]
   Services --> Mongo["MongoDB Atlas"]
-  Services --> OpenRouter["OpenRouter Chat Completions API"]
+  Services --> OpenRouter["OpenRouter API"]
   Services --> Socket
 ```
 
 | Layer | Responsibility |
 |---|---|
-| React Frontend | UI, routing, Kanban drag/drop, forms, AI panel, socket subscriptions. |
-| Express Routes | HTTP endpoint declaration and middleware composition. |
-| Controllers | Thin request/response handlers. |
-| Services | Business rules, database orchestration, notifications, analytics, AI integration. |
-| Models | Mongoose schemas, references, indexes. |
-| Socket.IO | Real-time task and notification events. |
-| OpenRouter | Cost-controlled structured reasoning output for AI-assisted productivity features. |
+| React frontend | Routes, forms, dashboards, Kanban UI, AI panel, auth state, socket client. |
+| Express routes | Endpoint declaration and middleware composition. |
+| Controllers | Request/response orchestration only. |
+| Services | Business rules, database orchestration, AI boundary, audit logging, notifications. |
+| Models | Mongoose schemas, validation constraints, relationships, indexes. |
+| Socket.IO | Project-scoped task events and user-scoped notification events. |
+| OpenRouter | Structured AI output for planning and summaries. |
 
-## 6. Deterministic Logic vs AI Logic
+## Deterministic Logic vs AI Logic
 
 | Deterministic Backend Logic | AI-Assisted Reasoning |
 |---|---|
-| Authentication and JWT verification | Task breakdown from natural language. |
-| Role-based authorization | Detailed task description generation. |
-| Project and member access checks | Context-aware task suggestions. |
-| Task status transitions | Project-state chat assistant. |
-| Dashboard metrics | Human-readable project summary. |
-| Overdue detection | Risk and next-step recommendations. |
-| Notifications and activity logs | Advisory output only, no direct database writes. |
+| Authentication, password hashing, JWT verification | Task breakdown from natural language. |
+| Email verification token generation and validation | Detailed task description generation. |
+| Role-based authorization and project access checks | Context-aware missing task suggestions. |
+| Project/team/task CRUD and status updates | Project-state chat assistant. |
+| Dashboard metrics and risk counts | Human-readable project summary. |
+| Notifications, overdue scans, activity logs | Advisory next-step recommendations. |
 
-## 7. Repository Structure
+AI never writes directly to MongoDB. AI can suggest tasks; creation still happens through normal task APIs and RBAC rules.
+
+## Repository Structure
 
 ```txt
-workos/
+WorkOS/
   backend/
     src/
-      config/          # Environment, MongoDB, OpenRouter client
-      controllers/     # HTTP request/response handlers
-      middlewares/     # Auth, RBAC, validation, errors
+      config/          # env, MongoDB, OpenRouter
+      controllers/     # thin HTTP handlers
+      middlewares/     # auth, RBAC, validation, errors
       models/          # Mongoose schemas
-      routes/          # API routes
-      services/        # Business logic and AI boundary
-      socket/          # Socket.IO helpers
+      routes/          # Express route modules
+      services/        # business logic and AI boundary
+      socket/          # Socket.IO room/event helpers
       utils/           # AppError, asyncHandler
-      validators/      # Zod request schemas
-      app.js
-      server.js
+      validators/      # Zod schemas
+      app.js           # Express app and production static frontend
+      server.js        # HTTP server, socket server, DB connection
   frontend/
     src/
       api/             # Axios and Socket.IO clients
-      components/      # Layout, Kanban, AI panel, forms
-      pages/           # Login, dashboard, projects, project detail
+      components/      # Layout, Kanban, task form, AI panel, dashboards
+      pages/           # Landing, auth, dashboard, projects, project detail
       state/           # Auth context
   docs/
     SRC.md
     HLD.md
     LLD.md
+  railway.json         # root monorepo deployment config
 ```
 
-## 8. Backend API Summary
+## Role Permission Summary
+
+| Capability | Admin | Manager | Member |
+|---|---:|---:|---:|
+| View dashboard | Yes | Yes | Yes |
+| View accessible projects | All projects | Created/member projects | Member projects |
+| Create projects | Yes | Yes | No |
+| Change project lead | Yes | No | No |
+| Add project members | Admin/manager/member except admin assignment limits handled by service | Member users only | No |
+| Remove project members | Yes | Member users only | No |
+| Create/assign/delete tasks | Yes | Yes, assignee must be member | No |
+| Move any project task | Yes | Yes | No |
+| Move assigned task status | Yes | Yes | Yes |
+| Update user roles | Yes | No | No |
+| Use AI assistant | Yes | Yes | Yes |
+
+## API Summary
 
 | Method | Endpoint | Auth | Roles | Purpose |
 |---|---|---:|---|---|
-| POST | `/api/auth/signup` | No | Public | Create account. |
-| POST | `/api/auth/login` | No | Public | Login and receive JWT. |
-| POST | `/api/auth/google` | No | Public | Verify Google ID token and receive JWT. |
+| POST | `/api/auth/signup` | No | Public | Create local account and send/return verification flow. |
+| POST | `/api/auth/login` | No | Public | Login verified local user and issue JWT. |
+| GET | `/api/auth/verify-email/:token` | No | Public | Verify email token and issue JWT. |
+| POST | `/api/auth/resend-verification` | No | Public | Send another verification email for unverified users. |
+| POST | `/api/auth/google` | No | Public | Verify Google ID token and issue JWT. |
 | GET | `/api/auth/me` | Yes | All | Get current user. |
 | GET | `/api/projects` | Yes | All | List accessible projects. |
 | POST | `/api/projects` | Yes | Admin, Manager | Create project. |
-| GET | `/api/projects/:projectId` | Yes | All | Get project details. |
+| GET | `/api/projects/:projectId` | Yes | All with project access | Get project detail. |
 | PATCH | `/api/projects/:projectId` | Yes | Admin, Manager | Update project. |
-| DELETE | `/api/projects/:projectId` | Yes | Admin, Manager | Delete project. |
-| POST | `/api/projects/:projectId/members/:memberId` | Yes | Admin, Manager | Add member. |
-| DELETE | `/api/projects/:projectId/members/:memberId` | Yes | Admin, Manager | Remove member. |
-| GET | `/api/tasks/project/:projectId` | Yes | All | List project tasks. |
+| DELETE | `/api/projects/:projectId` | Yes | Admin, Manager | Delete project and tasks. |
+| GET | `/api/projects/:projectId/activity` | Yes | All with project access | Get project activity. |
+| POST | `/api/projects/:projectId/members/:memberId` | Yes | Admin, Manager | Add project member. |
+| DELETE | `/api/projects/:projectId/members/:memberId` | Yes | Admin, Manager | Remove project member. |
+| GET | `/api/tasks/project/:projectId` | Yes | All with project access | List project tasks. |
 | POST | `/api/tasks` | Yes | Admin, Manager | Create task. |
-| PATCH | `/api/tasks/:taskId` | Yes | All | Update task, member restricted. |
+| PATCH | `/api/tasks/:taskId` | Yes | All with restrictions | Update task; members status-only for assigned tasks. |
 | DELETE | `/api/tasks/:taskId` | Yes | Admin, Manager | Delete task. |
-| GET | `/api/dashboard` | Yes | All | Get analytics overview. |
+| GET | `/api/dashboard` | Yes | All | Role-aware analytics overview. |
 | GET | `/api/notifications` | Yes | All | List notifications. |
 | PATCH | `/api/notifications/:notificationId/read` | Yes | All | Mark notification read. |
+| GET | `/api/users` | Yes | Admin, Manager | List users for team assignment. |
+| PATCH | `/api/users/:userId/role` | Yes | Admin | Update role. |
+| GET | `/health` | No | Public | Railway health check. |
 
-## 9. AI API Summary
+## AI API Summary
 
 | Method | Endpoint | Input | Output |
 |---|---|---|---|
-| POST | `/api/ai/breakdown` | `goal`, optional `projectId` | Structured subtasks. |
-| POST | `/api/ai/description` | `title`, optional `projectId` | Description, steps, edge cases, acceptance criteria. |
-| GET | `/api/ai/projects/:projectId/suggestions` | Project id | Suggested missing tasks. |
-| POST | `/api/ai/projects/:projectId/chat` | Project id, question | Answer, recommended actions, risks. |
-| GET | `/api/ai/projects/:projectId/summary` | Project id | Summary, progress, delays, risks, next steps. |
+| POST | `/api/ai/breakdown` | `goal`, optional `projectId` | `tasks[]` with title, description, priority, estimatedHours, acceptanceCriteria. |
+| POST | `/api/ai/description` | `title`, optional `projectId` | description, steps, edge cases, acceptance criteria. |
+| POST | `/api/ai/dashboard/chat` | `question` | Dashboard-context answer, actions, risks. |
+| GET | `/api/ai/projects/:projectId/suggestions` | project id | Suggested missing tasks. |
+| POST | `/api/ai/projects/:projectId/chat` | project id, question | Project-context answer, recommended actions, risks. |
+| GET | `/api/ai/projects/:projectId/summary` | project id | Summary, progress, delays, risks, next steps. |
 
-## 10. Data Model Summary
+## Local Setup
 
-| Model | Purpose | Key Relationships |
-|---|---|---|
-| User | Auth identity and role. | Creates projects, belongs to projects, assigned to tasks. |
-| Project | Team workspace. | Created by user, has members, contains tasks. |
-| Task | Work item. | Belongs to project, optionally assigned to user. |
-| ActivityLog | Audit event. | Linked to actor and project. |
-| Notification | User alert. | Linked to recipient, optional task/project. |
-
-## 11. Local Setup
-
-### 11.1 Prerequisites
+### Prerequisites
 
 | Tool | Recommended |
 |---|---|
 | Node.js | 20+ |
 | npm | 10+ |
 | MongoDB | MongoDB Atlas or local MongoDB |
-| OpenRouter API Key | Required only for AI endpoints |
+| OpenRouter API key | Required for AI endpoints |
+| Google OAuth client id | Required for Google login |
+| SMTP provider | Required for production local-email signup verification |
 
-### 11.2 Install Dependencies
+### Install
 
 ```bash
 npm run install:all
 ```
 
-### 11.3 Backend Environment
+### Backend Environment
 
 Create `backend/.env` from `backend/.env.example`.
 
-| Variable | Example | Required | Purpose |
-|---|---|---:|---|
-| `NODE_ENV` | `development` | No | Runtime environment. |
-| `PORT` | `5000` | No | Backend port. |
-| `CLIENT_URL` | `http://localhost:5173` | Yes | CORS origin. |
-| `MONGO_URI` | `mongodb+srv://...` | Yes | MongoDB connection string. |
-| `JWT_SECRET` | `long-random-secret` | Yes | JWT signing secret. |
-| `JWT_EXPIRES_IN` | `7d` | No | Token expiry. |
-| `GOOGLE_CLIENT_ID` | `...apps.googleusercontent.com` | Google login | Backend verifies Google ID token audience. |
-| `SMTP_HOST` | `smtp.example.com` | Email verification | SMTP host for verification emails. |
-| `SMTP_PORT` | `587` | Email verification | SMTP port. |
-| `SMTP_SECURE` | `false` | No | Use TLS socket mode for providers that require it. |
-| `SMTP_USER` | `apikey-or-user` | Email verification | SMTP username. |
-| `SMTP_PASS` | `smtp-secret` | Email verification | SMTP password or provider token. |
-| `MAIL_FROM` | `WorkOS <no-reply@yourdomain.com>` | Email verification | Sender shown in verification emails. |
-| `OPENROUTER_API_KEY` | `sk-or-...` | AI only | Enables AI endpoints. |
-| `OPENROUTER_MODEL` | `openrouter/free` | No | Free model router by default. |
-| `OPENROUTER_REFERER` | `http://localhost:5173` | No | Optional OpenRouter app attribution URL. |
-| `OPENROUTER_TITLE` | `WorkOS` | No | Optional OpenRouter app attribution title. |
+| Variable | Required | Purpose |
+|---|---:|---|
+| `NODE_ENV` | No | `development` or `production`. |
+| `PORT` | No | Server port; Railway injects this automatically. |
+| `CLIENT_URL` | Production recommended | Public frontend URL for CORS and email verification links. |
+| `MONGO_URI` | Yes | MongoDB Atlas connection string. |
+| `JWT_SECRET` | Yes | Long random JWT signing secret. |
+| `JWT_EXPIRES_IN` | No | JWT lifetime, default `7d`. |
+| `GOOGLE_CLIENT_ID` | Google login | Backend verifies Google token audience. |
+| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | Production local signup | Verification email provider config. |
+| `SMTP_PORT`, `SMTP_SECURE`, `MAIL_FROM` | Email | Email transport details. |
+| `OPENROUTER_API_KEY` | AI | Enables AI endpoints. |
+| `OPENROUTER_MODEL` | No | Defaults to `openrouter/free`. |
+| `OPENROUTER_REFERER`, `OPENROUTER_TITLE` | No | OpenRouter attribution metadata. |
 
-### 11.4 Frontend Environment
+In development, if SMTP is not configured, the backend logs and returns a development verification link. In production, SMTP is required for local email verification; Google login auto-verifies the email from Google.
+
+### Frontend Environment
 
 Create `frontend/.env` from `frontend/.env.example`.
 
-| Variable | Example | Purpose |
-|---|---|---|
-| `VITE_API_URL` | `http://localhost:5000/api` | REST API base URL. |
-| `VITE_SOCKET_URL` | `http://localhost:5000` | Socket.IO server URL. |
-| `VITE_GOOGLE_CLIENT_ID` | `...apps.googleusercontent.com` | Enables Google login button. |
+| Variable | Required | Purpose |
+|---|---:|---|
+| `VITE_GOOGLE_CLIENT_ID` | Google login | Google Identity client id for the frontend button. |
+| `VITE_API_URL` | Local only | Defaults to `http://localhost:5000/api` in dev and `/api` in production. |
+| `VITE_SOCKET_URL` | Local only | Defaults to `http://localhost:5000` in dev and same-origin in production. |
 
-### 11.5 Run Locally
+### Run Locally
 
 | Command | Purpose |
 |---|---|
 | `npm run dev` | Run backend and frontend together. |
 | `npm run dev --prefix backend` | Run backend only. |
 | `npm run dev --prefix frontend` | Run frontend only. |
-| `npm run build --prefix frontend` | Build frontend for production. |
-| `npm start --prefix backend` | Start backend in production mode. |
+| `npm run build --prefix frontend` | Build frontend. |
+| `npm start --prefix backend` | Start backend. |
 
 Default URLs:
 
@@ -231,46 +248,54 @@ Default URLs:
 |---|---|
 | Frontend | `http://localhost:5173` |
 | Backend | `http://localhost:5000` |
-| Health Check | `http://localhost:5000/health` |
+| Health | `http://localhost:5000/health` |
 
-## 12. Deployment Guide
+## Railway Deployment
 
-### 12.1 Backend on Railway
+This repository is configured for a single Railway service from the repository root.
 
-| Step | Action |
+| File | Purpose |
 |---|---|
-| 1 | Create Railway project and connect repository. |
-| 2 | Set service root directory to `backend`. |
-| 3 | Add environment variables from `backend/.env.example`. |
-| 4 | Set start command to `npm start`. |
-| 5 | Set `CLIENT_URL` to deployed frontend URL. |
-| 6 | Deploy and verify `/health`. |
+| `railway.json` | Runs `npm run install:all && npm run build`, starts `npm start`, checks `/health`. |
+| `backend/src/app.js` | Serves `frontend/dist` when `NODE_ENV=production`. |
+| `frontend/src/api/client.js` | Uses `/api` in production when no `VITE_API_URL` is set. |
+| `frontend/src/api/socket.js` | Uses same-origin Socket.IO in production when no `VITE_SOCKET_URL` is set. |
 
-### 12.2 Frontend on Vercel or Railway
+### Railway Variables
 
-| Step | Action |
+Set these in Railway:
+
+```env
+NODE_ENV=production
+MONGO_URI=your_mongodb_atlas_uri
+JWT_SECRET=long_random_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
+OPENROUTER_API_KEY=your_openrouter_key
+OPENROUTER_MODEL=openrouter/free
+CLIENT_URL=https://workos-production-0d1c.up.railway.app
+OPENROUTER_REFERER=https://workos-production-0d1c.up.railway.app
+OPENROUTER_TITLE=WorkOS
+```
+
+Do not set `VITE_API_URL=http://localhost:5000/api` or `VITE_SOCKET_URL=http://localhost:5000` in Railway. The deployed frontend and backend run on the same Railway domain.
+
+### Google Cloud Configuration
+
+Add this to the Google OAuth client:
+
+| Setting | Value |
 |---|---|
-| 1 | Create frontend deployment from `frontend` directory. |
-| 2 | Build command: `npm run build`. |
-| 3 | Output directory: `dist`. |
-| 4 | Set `VITE_API_URL=https://your-backend.railway.app/api`. |
-| 5 | Set `VITE_SOCKET_URL=https://your-backend.railway.app`. |
+| Authorized JavaScript origin | `https://workos-production-0d1c.up.railway.app` |
 
-### 12.3 MongoDB Atlas
+The current implementation uses Google Identity Services credential/ID-token verification. The backend verifies the token audience with `GOOGLE_CLIENT_ID` and issues the app JWT.
 
-| Step | Action |
-|---|---|
-| 1 | Create Atlas cluster. |
-| 2 | Create database user. |
-| 3 | Configure network access for deployed backend. |
-| 4 | Copy connection string to `MONGO_URI`. |
+## Sample API Requests
 
-## 13. Sample API Requests
-
-Set environment variables:
+Use the deployed API:
 
 ```bash
-API="http://localhost:5000/api"
+API="https://workos-production-0d1c.up.railway.app/api"
 TOKEN="paste-jwt-token-here"
 ```
 
@@ -285,15 +310,7 @@ curl -X POST "$API/auth/signup" \
 Verify email:
 
 ```bash
-curl "$API/auth/verify-email/VERIFICATION_TOKEN_FROM_EMAIL"
-```
-
-Resend verification:
-
-```bash
-curl -X POST "$API/auth/resend-verification" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"asha@example.com"}'
+curl "$API/auth/verify-email/VERIFICATION_TOKEN"
 ```
 
 Login:
@@ -304,21 +321,23 @@ curl -X POST "$API/auth/login" \
   -d '{"email":"asha@example.com","password":"Password123!"}'
 ```
 
-Google login:
-
-```bash
-curl -X POST "$API/auth/google" \
-  -H "Content-Type: application/json" \
-  -d '{"credential":"GOOGLE_ID_TOKEN_FROM_FRONTEND"}'
-```
-
 Create project:
 
 ```bash
 curl -X POST "$API/projects" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Authentication Platform","description":"Build production auth for WorkOS"}'
+  -d '{
+    "name":"Authentication System Upgrade",
+    "description":"Build secure signup, login, Google auth, email verification, and RBAC.",
+    "category":"engineering",
+    "priority":"high",
+    "deliveryMode":"sprint",
+    "dueDate":"2026-05-20",
+    "goals":["Implement secure signup and login","Add Google OAuth authentication","Protect routes using JWT and RBAC"],
+    "successCriteria":["Users cannot login before email verification","Managers and members see role-specific dashboards","JWT-protected APIs reject unauthorized users"],
+    "tags":["auth","security","sprint"]
+  }'
 ```
 
 Create task:
@@ -327,7 +346,7 @@ Create task:
 curl -X POST "$API/tasks" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"projectId":"PROJECT_ID","title":"Build JWT login","description":"Implement signup/login with hashed passwords","status":"todo","dueDate":"2026-05-15"}'
+  -d '{"projectId":"PROJECT_ID","title":"Login and JWT issuance","description":"Implement verified login with JWT session issuance.","assignedTo":null,"status":"todo","dueDate":"2026-05-15"}'
 ```
 
 Move task:
@@ -355,43 +374,36 @@ curl -X GET "$API/ai/projects/PROJECT_ID/summary" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## 14. Quality Checklist
+## Quality Checklist
 
 | Quality Area | Status |
 |---|---:|
 | Layered backend architecture | Done |
 | JWT authentication | Done |
 | Password hashing | Done |
+| Email verification | Done |
+| Google Identity login | Done |
 | Middleware-based RBAC | Done |
+| Service-level permission enforcement | Done |
 | Zod validation | Done |
-| Central error handling | Done |
+| Centralized error handling | Done |
 | MongoDB schemas and indexes | Done |
 | Real-time task updates | Done |
 | Real-time notifications | Done |
 | Activity logs | Done |
+| Role-specific dashboards | Done |
 | Productivity analytics | Done |
 | AI service isolation | Done |
 | Structured AI output | Done |
-| Env-based configuration | Done |
-| Deployment docs | Done |
+| Railway monorepo deployment | Done |
 | HLD, LLD, SRC docs | Done |
 
-## 15. Useful Commands
-
-| Command | Description |
-|---|---|
-| `npm run install:all` | Install backend and frontend dependencies. |
-| `npm run dev` | Run both apps in development. |
-| `npm run build` | Build frontend from root script. |
-| `npm start` | Start backend from root script. |
-| `npm run build --prefix frontend` | Verify frontend production build. |
-
-## 16. Notes for Reviewers
+## Reviewer Notes
 
 | Topic | Explanation |
 |---|---|
-| AI is practical, not gimmicky | It assists planning and summaries while backend keeps authority over state. |
-| Controllers are intentionally thin | This keeps HTTP concerns separate from business rules. |
-| Services are reusable | Same services can be used by REST, jobs, or future GraphQL routes. |
-| Socket events are scoped | Project events go to project rooms; notifications go to user rooms. |
-| The app is extension-friendly | Comments, sprints, file uploads, Redis sockets, and background jobs can be added cleanly. |
+| The first account becomes admin | This makes local/demo setup simple without seed scripts. |
+| Later signups default to member | Users cannot self-promote; admin updates roles. |
+| Managers are constrained | Managers can create projects and assign work, but cannot add elevated users as normal team members. |
+| AI is advisory | It produces structured planning output but does not bypass RBAC or mutate the database directly. |
+| Single Railway service | The backend serves the static frontend in production; frontend API and socket calls are same-origin. |
