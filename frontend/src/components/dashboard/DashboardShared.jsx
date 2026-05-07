@@ -1,4 +1,4 @@
-﻿import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import {
   AlertTriangle, ArrowRight, Bot, Brain, CheckCircle2,
   Clock, Send, Sparkles, TrendingUp, Zap
@@ -253,7 +253,7 @@ export const AiAssistantSidebar = ({ role, overview }) => {
   const [messages, setMessages] = useState([{ from: "ai", text: roleIntro(role, overview) }]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const scrollRef = useRef(null);
   const suggestions = useMemo(() => (overview.aiInsights || []).slice(0, 3), [overview.aiInsights]);
 

@@ -794,7 +794,19 @@ body.light-mode .ds-topbar-icon-btn:hover { color: #18181b; border-color: #d4d4d
 }
 .ds-hero-name { color: var(--ds-accent); }
 
-.ds-member-layout { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 24px; align-items: start; }
+.ds-member-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+.ds-member-layout > main {
+  flex: 1 1 450px;
+  min-width: 0;
+}
+.ds-member-layout > aside {
+  flex: 0 0 280px;
+}
 .ds-member-main { display: flex; flex-direction: column; gap: 24px; }
 .ds-member-aside { display: flex; flex-direction: column; gap: 24px; }
 

@@ -14,7 +14,6 @@ const NAV = [
 ];
 
 export const Layout = () => {
-  console.log("Layout Component Reloaded", Math.random());
   const { user, logout } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
