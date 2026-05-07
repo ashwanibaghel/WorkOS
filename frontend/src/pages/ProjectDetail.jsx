@@ -1,17 +1,19 @@
 import { format } from "date-fns";
-import { AlertTriangle, BarChart3, CheckCircle2, Clock, ListTodo, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle2, Clock, Flag, ListTodo, RotateCcw, Trash2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import { getSocket } from "../api/socket.js";
 import { AiPanel } from "../components/AiPanel.jsx";
 import { KanbanBoard } from "../components/KanbanBoard.jsx";
 import { MemberManager } from "../components/MemberManager.jsx";
+import { ProjectChat } from "../components/ProjectChat.jsx";
 import { TaskForm } from "../components/TaskForm.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 
 export const ProjectDetail = () => {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -91,6 +93,19 @@ export const ProjectDetail = () => {
     setTasks((items) => items.map((item) => (item._id === taskId ? res.data.task : item)));
   };
 
+  const toggleProjectStatus = async () => {
+    const nextStatus = project.status === "completed" ? "active" : "completed";
+    const res = await api.patch(`/projects/${projectId}`, { status: nextStatus });
+    setProject(res.data.project);
+  };
+
+  const deleteProject = async () => {
+    const confirmed = window.confirm("Delete this project, its tasks, and project chat?");
+    if (!confirmed) return;
+    await api.delete(`/projects/${projectId}`);
+    navigate("/projects");
+  };
+
   if (error) return <section className="page"><div className="error">{error}</div></section>;
   if (!project) return <section className="page">Loading project...</section>;
 
@@ -98,7 +113,7 @@ export const ProjectDetail = () => {
     <section className="page project-detail">
       <div className="project-detail-hero">
         <div className="project-detail-copy">
-          <span className="project-detail-eyebrow">{roleSummary.title}</span>
+          <span className="project-detail-eyebrow">{project.status || "active"} project</span>
           <h1>{project.name}</h1>
           <p>{project.description || "No description yet."}</p>
           <div className="project-detail-meta">
@@ -113,6 +128,17 @@ export const ProjectDetail = () => {
           <span>Completion</span>
           <strong>{taskStats.completion}%</strong>
           <small>{taskStats.done} of {tasks.length} tasks done</small>
+          {canManage && (
+            <div className="project-action-stack">
+              <button className="success-button" onClick={toggleProjectStatus}>
+                {project.status === "completed" ? <RotateCcw size={15} /> : <Flag size={15} />}
+                {project.status === "completed" ? "Reopen" : "Finish"}
+              </button>
+              <button className="danger-button" onClick={deleteProject}>
+                <Trash2 size={15} /> Delete
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -124,13 +150,16 @@ export const ProjectDetail = () => {
         <ProjectKpi icon={<Users size={16} />} label="Unassigned" value={taskStats.unassigned} danger={taskStats.unassigned > 0} />
       </div>
 
-      <div className="project-role-guide">
+      <div className="project-flow-card">
         <div>
+          <span>Workspace flow</span>
           <strong>{roleSummary.title}</strong>
-          <span>{roleSummary.subtitle}</span>
+          <small>{roleSummary.subtitle}</small>
         </div>
-        <div className="project-role-points">
-          {roleSummary.points.map((point) => <span key={point}>{point}</span>)}
+        <div className="project-workflow">
+          {roleSummary.points.map((point, index) => (
+            <span key={point}><strong>{index + 1}</strong>{point}</span>
+          ))}
         </div>
       </div>
 
@@ -151,51 +180,64 @@ export const ProjectDetail = () => {
         </div>
       )}
 
-      <div className="project-grid">
-        <div className="project-work">
-          {canManage && (
-            <div className="section-band task-create-section">
-              <div className="section-title-row">
-                <div>
-                  <h2>Create task</h2>
-                  <p>New work starts in Todo.</p>
-                </div>
-              </div>
-              <TaskForm members={taskAssignees} onSubmit={addTask} />
-            </div>
-          )}
-          <div className="section-band project-board-section">
+      <div className="project-work">
+        {canManage && project.status !== "completed" && (
+          <div className="section-band task-create-section">
             <div className="section-title-row">
               <div>
-                <h2>Task board</h2>
-                <p>Move cards as work progresses.</p>
+                <h2>Create task</h2>
+                <p>Add one clear work item, assign an owner, then track it on the board.</p>
               </div>
-              <span className="board-count"><BarChart3 size={14} /> {tasks.length} tasks</span>
             </div>
-            <KanbanBoard tasks={tasks} onUpdateTask={updateTask} canManage={canManage} currentUser={user} />
+            <TaskForm members={taskAssignees} onSubmit={addTask} />
           </div>
-        </div>
-        <aside className="side-panel">
-          <MemberManager
-            members={members}
-            users={users}
+        )}
+        {canManage && project.status === "completed" && (
+          <div className="section-band completed-note">
+            <strong>This project is finished.</strong>
+            <span>Reopen it from the top control if the team needs to add or move work again.</span>
+          </div>
+        )}
+        <div className="section-band project-board-section">
+          <div className="section-title-row">
+            <div>
+              <h2>Task board</h2>
+              <p>Todo to In Progress to Done. Members can move only their assigned tasks.</p>
+            </div>
+            <span className="board-count"><BarChart3 size={14} /> {tasks.length} tasks</span>
+          </div>
+          <KanbanBoard
+            tasks={tasks}
+            onUpdateTask={updateTask}
+            canManage={canManage && project.status !== "completed"}
             currentUser={user}
-            canManage={canManage}
-            onAdd={addMember}
-            onRemove={removeMember}
+            locked={project.status === "completed"}
           />
-          <AiPanel projectId={projectId} onCreateTask={canManage ? addTask : null} />
-          <div className="section-band compact">
-            <h2>Activity</h2>
-            {logs.length === 0 && <p className="muted">No activity yet.</p>}
-            {logs.slice(0, 8).map((log) => (
-              <div className="activity-row" key={log._id}>
-                <span>{activityLabel(log.action)}</span>
-                <small>{format(new Date(log.createdAt), "MMM d, HH:mm")}</small>
-              </div>
-            ))}
-          </div>
-        </aside>
+        </div>
+      </div>
+
+      <ProjectChat projectId={projectId} currentUser={user} />
+
+      <div className="project-support-grid">
+        <MemberManager
+          members={members}
+          users={users}
+          currentUser={user}
+          canManage={canManage && project.status !== "completed"}
+          onAdd={addMember}
+          onRemove={removeMember}
+        />
+        <AiPanel projectId={projectId} onCreateTask={canManage && project.status !== "completed" ? addTask : null} />
+        <div className="section-band compact">
+          <h2>Activity</h2>
+          {logs.length === 0 && <p className="muted">No activity yet.</p>}
+          {logs.slice(0, 8).map((log) => (
+            <div className="activity-row" key={log._id}>
+              <span>{activityLabel(log.action)}</span>
+              <small>{format(new Date(log.createdAt), "MMM d, HH:mm")}</small>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -216,20 +258,20 @@ const roleCopy = (role, name) => {
     return {
       title: "Manager workspace",
       subtitle: name,
-      points: ["Plan tasks", "Assign members", "Track status", "Use AI when stuck"]
+      points: ["Plan tasks", "Assign owners", "Discuss in chat", "Finish project"]
     };
   }
   if (role === "member") {
     return {
       title: "Member workspace",
       subtitle: name,
-      points: ["View project context", "Work assigned tasks", "Update status", "Ask AI for clarity"]
+      points: ["Read context", "Work assigned tasks", "Discuss in chat", "Update status"]
     };
   }
   return {
     title: "Admin workspace",
     subtitle: name,
-    points: ["Review health", "Manage access", "Assign work", "Audit activity"]
+    points: ["Review health", "Manage access", "Discuss in chat", "Audit activity"]
   };
 };
 
@@ -238,6 +280,7 @@ const activityLabel = (action) => ({
   "project.updated": "Project updated",
   "project.member_added": "Member added",
   "project.member_removed": "Member removed",
+  "project.message_created": "Chat message sent",
   "task.created": "Task created",
   "task.updated": "Task updated",
   "task.deleted": "Task deleted",

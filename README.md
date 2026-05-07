@@ -23,7 +23,7 @@ Production-oriented full-stack SaaS task manager for teams. WorkOS combines dete
 |---|---|
 | Backend design | Thin controllers, reusable services, Mongoose models, centralized error handling. |
 | Security | JWT auth, bcrypt password hashing, email verification tokens, Google login, RBAC, validation, no committed secrets. |
-| Real-time architecture | Socket.IO project rooms and user notification rooms. |
+| Real-time architecture | Socket.IO project rooms for tasks and team chat, plus user notification rooms. |
 | Product thinking | Admin, manager, and member dashboards are role-specific instead of one shared generic screen. |
 | AI boundary | AI is advisory only; deterministic backend logic owns permissions, writes, metrics, and state transitions. |
 | Deployment readiness | Root Railway config supports a monorepo build and serves the frontend from the backend in production. |
@@ -41,11 +41,12 @@ Production-oriented full-stack SaaS task manager for teams. WorkOS combines dete
 | Team management | Admin/manager can add/remove users; managers can add only member users | Done | `backend/src/services/projectService.js`, `frontend/src/components/MemberManager.jsx` |
 | Tasks | Create, assign, move status, due dates, completion timestamp | Done | `backend/src/services/taskService.js`, `frontend/src/components/TaskForm.jsx` |
 | Kanban | Drag/drop Todo, In Progress, Done; member drag restricted to own assigned tasks | Done | `frontend/src/components/KanbanBoard.jsx` |
+| Project workspace | Simple project flow, finish/reopen action, delete action, team chat, activity, AI panel | Done | `frontend/src/pages/ProjectDetail.jsx`, `frontend/src/components/ProjectChat.jsx` |
 | Dashboards | Separate admin, manager, and member dashboards with different layouts | Done | `frontend/src/components/dashboard/*` |
 | Analytics | Completion rate, pending, overdue, average completion time, workload, risk signals | Done | `backend/src/services/dashboardService.js` |
 | Notifications | Assignment and overdue notifications with unread count | Done | `backend/src/services/notificationService.js` |
-| Real-time | Task updates and notification push through Socket.IO | Done | `backend/src/socket/socket.js`, `frontend/src/api/socket.js` |
-| Activity logs | Project, task, member, and AI actions logged | Done | `backend/src/services/activityService.js` |
+| Real-time | Task updates, team chat, and notification push through Socket.IO | Done | `backend/src/socket/socket.js`, `frontend/src/api/socket.js` |
+| Activity logs | Project, task, member, chat, and AI actions logged | Done | `backend/src/services/activityService.js` |
 | AI breakdown | Natural language goal to structured subtasks | Done | `backend/src/services/aiService.js` |
 | AI description | Task title to description, steps, edge cases, acceptance criteria | Done | `frontend/src/components/TaskForm.jsx` |
 | AI suggestions | Context-aware missing task suggestions | Done | `frontend/src/components/AiPanel.jsx` |
@@ -80,7 +81,7 @@ flowchart LR
 | Controllers | Request/response orchestration only. |
 | Services | Business rules, database orchestration, AI boundary, audit logging, notifications. |
 | Models | Mongoose schemas, validation constraints, relationships, indexes. |
-| Socket.IO | Project-scoped task events and user-scoped notification events. |
+| Socket.IO | Project-scoped task/chat events and user-scoped notification events. |
 | OpenRouter | Structured AI output for planning and summaries. |
 
 ## Deterministic Logic vs AI Logic
@@ -90,7 +91,7 @@ flowchart LR
 | Authentication, password hashing, JWT verification | Task breakdown from natural language. |
 | Email verification token generation and validation | Detailed task description generation. |
 | Role-based authorization and project access checks | Context-aware missing task suggestions. |
-| Project/team/task CRUD and status updates | Project-state chat assistant. |
+| Project/team/task CRUD, project team chat, and status updates | Project-state chat assistant. |
 | Dashboard metrics and risk counts | Human-readable project summary. |
 | Notifications, overdue scans, activity logs | Advisory next-step recommendations. |
 
@@ -134,11 +135,14 @@ WorkOS/
 | View accessible projects | All projects | Created/member projects | Member projects |
 | Create projects | Yes | Yes | No |
 | Change project lead | Yes | No | No |
+| Finish/reopen projects | Yes | Yes, with access | No |
+| Delete projects | Yes | Yes, with access | No |
 | Add project members | Admin/manager/member except admin assignment limits handled by service | Member users only | No |
 | Remove project members | Yes | Member users only | No |
 | Create/assign/delete tasks | Yes | Yes, assignee must be member | No |
 | Move any project task | Yes | Yes | No |
 | Move assigned task status | Yes | Yes | Yes |
+| Use project team chat | Yes | Yes | Yes, with project access |
 | Update user roles | Yes | No | No |
 | Use AI assistant | Yes | Yes | Yes |
 
@@ -156,8 +160,10 @@ WorkOS/
 | POST | `/api/projects` | Yes | Admin, Manager | Create project. |
 | GET | `/api/projects/:projectId` | Yes | All with project access | Get project detail. |
 | PATCH | `/api/projects/:projectId` | Yes | Admin, Manager | Update project. |
-| DELETE | `/api/projects/:projectId` | Yes | Admin, Manager | Delete project and tasks. |
+| DELETE | `/api/projects/:projectId` | Yes | Admin, Manager | Delete project, tasks, and project chat messages. |
 | GET | `/api/projects/:projectId/activity` | Yes | All with project access | Get project activity. |
+| GET | `/api/projects/:projectId/messages` | Yes | All with project access | List latest project team chat messages. |
+| POST | `/api/projects/:projectId/messages` | Yes | All with project access | Send project team chat message. |
 | POST | `/api/projects/:projectId/members/:memberId` | Yes | Admin, Manager | Add project member. |
 | DELETE | `/api/projects/:projectId/members/:memberId` | Yes | Admin, Manager | Remove project member. |
 | GET | `/api/tasks/project/:projectId` | Yes | All with project access | List project tasks. |
@@ -358,6 +364,24 @@ curl -X PATCH "$API/tasks/TASK_ID" \
   -d '{"status":"in-progress"}'
 ```
 
+Finish project:
+
+```bash
+curl -X PATCH "$API/projects/PROJECT_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"completed"}'
+```
+
+Send project chat message:
+
+```bash
+curl -X POST "$API/projects/PROJECT_ID/messages" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Auth API is ready for review. Please test Google login next."}'
+```
+
 AI task breakdown:
 
 ```bash
@@ -389,6 +413,7 @@ curl -X GET "$API/ai/projects/PROJECT_ID/summary" \
 | Centralized error handling | Done |
 | MongoDB schemas and indexes | Done |
 | Real-time task updates | Done |
+| Real-time project team chat | Done |
 | Real-time notifications | Done |
 | Activity logs | Done |
 | Role-specific dashboards | Done |
@@ -405,5 +430,6 @@ curl -X GET "$API/ai/projects/PROJECT_ID/summary" \
 | The first account becomes admin | This makes local/demo setup simple without seed scripts. |
 | Later signups default to member | Users cannot self-promote; admin updates roles. |
 | Managers are constrained | Managers can create projects and assign work, but cannot add elevated users as normal team members. |
+| Project finish is explicit | Completed projects are locked for task/team changes until an admin or manager reopens them. |
 | AI is advisory | It produces structured planning output but does not bypass RBAC or mutate the database directly. |
 | Single Railway service | The backend serves the static frontend in production; frontend API and socket calls are same-origin. |

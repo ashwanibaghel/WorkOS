@@ -6,14 +6,14 @@
 |---|---|
 | Project | WorkOS - AI-Assisted Team Task Manager |
 | Document | Low-Level Design (LLD) |
-| Version | 2.0 |
+| Version | 2.1 |
 | Last Updated | May 7, 2026 |
 | Live App | https://workos-production-0d1c.up.railway.app/ |
 | Repository | https://github.com/ashwanibaghel/WorkOS |
 
 ## 1. Purpose
 
-This LLD describes WorkOS at implementation level: backend modules, schemas, services, API routes, validation contracts, frontend components, socket events, deployment behavior, and important request flows.
+This LLD describes WorkOS at implementation level: backend modules, schemas, services, API routes, validation contracts, frontend components, socket events, deployment behavior, project collaboration flows, and important request flows.
 
 ## 2. Backend Entry Points
 
@@ -117,11 +117,26 @@ Indexes:
 | `{ assignedTo: 1, status: 1 }` | Workload and member task queue. |
 | `{ dueDate: 1 }` | Overdue scans. |
 
-### 4.4 ActivityLog
+### 4.4 ProjectMessage
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
-| `action` | String | Yes | Examples: `project.created`, `task.updated`, `ai.dashboard_chat`. |
+| `projectId` | ObjectId(Project) | Yes | Parent project room/workspace. |
+| `sender` | ObjectId(User) | Yes | User who sent the message. |
+| `message` | String | Yes | 1-1000 characters, trimmed. |
+
+Indexes:
+
+| Index | Purpose |
+|---|---|
+| `{ projectId: 1, createdAt: 1 }` | Chronological project chat history. |
+| `{ sender: 1, createdAt: -1 }` | Sender audit/history lookup. |
+
+### 4.5 ActivityLog
+
+| Field | Type | Required | Notes |
+|---|---|---:|---|
+| `action` | String | Yes | Examples: `project.created`, `project.message_created`, `task.updated`, `ai.dashboard_chat`. |
 | `entityType` | Enum | Yes | `project`, `task`, `user`, `notification`, `ai`. |
 | `entityId` | ObjectId | No | Related entity id. |
 | `userId` | ObjectId(User) | Yes | Actor. |
@@ -135,7 +150,7 @@ Indexes:
 | `{ projectId: 1, createdAt: -1 }` | Project activity timeline. |
 | `{ userId: 1, createdAt: -1 }` | Actor history. |
 
-### 4.5 Notification
+### 4.6 Notification
 
 | Field | Type | Required | Notes |
 |---|---|---:|---|
@@ -173,7 +188,7 @@ Indexes:
 | `list` | Admin gets all projects; manager/member get created/member projects. |
 | `get` | Fetches project using access query. |
 | `update` | Applies metadata updates and member list updates with role checks. |
-| `remove` | Deletes project and related tasks. |
+| `remove` | Deletes project and related tasks/messages. |
 | `addMember` | Adds one member with manager scope restriction. |
 | `removeMember` | Removes one member with manager scope restriction. |
 | `assertProjectAccess` | Shared project access guard for task/AI services. |
@@ -187,15 +202,25 @@ Role-sensitive project rules:
 | Admin-selected project lead must be admin or manager. | `assertAdminLead`. |
 | Manager can add only member users. | `assertManagerMemberScope`. |
 | Project members always include creator and project lead. | Payload normalization. |
+| Completed project blocks team changes until reopened. | `assertProjectOpenForTeam`. |
 
-### 5.3 Task Service
+### 5.3 Project Chat Service
 
 | Method | Responsibility |
 |---|---|
-| `create` | Checks project access, validates assignee rule, creates task, notifies assignee, logs, emits `task:created`. |
+| `list` | Checks project access and returns latest project messages in chronological order. |
+| `create` | Checks project access, saves message, logs `project.message_created`, emits `chat:message`. |
+
+Project chat is deterministic team communication, separate from the AI assistant. AI can answer project-state questions, but manager/member chat messages are stored as normal MongoDB documents and delivered through Socket.IO.
+
+### 5.4 Task Service
+
+| Method | Responsibility |
+|---|---|
+| `create` | Checks project access, blocks completed projects, validates assignee rule, creates task, notifies assignee, logs, emits `task:created`. |
 | `list` | Lists tasks for an accessible project. |
-| `update` | Checks access, enforces member restrictions, updates `completedAt`, notifies changed assignee, logs, emits `task:updated`. |
-| `remove` | Admin/manager route only; deletes task, logs, emits `task:deleted`. |
+| `update` | Checks access, blocks completed projects, enforces member restrictions, updates `completedAt`, notifies changed assignee, logs, emits `task:updated`. |
+| `remove` | Admin/manager route only; blocks completed projects, deletes task, logs, emits `task:deleted`. |
 
 Member update rule:
 
@@ -205,6 +230,7 @@ Member update rule:
 | Member unassigned to task | Forbidden. |
 | Member updates title, description, assignee, due date | Forbidden. |
 | Admin/manager updates task | Allowed after project access check and assignee restrictions. |
+| Project status is `completed` | Task create/update/delete is blocked until project is reopened. |
 
 Manager assignee rule:
 
@@ -213,7 +239,7 @@ Manager assignee rule:
 | Manager | Member users only. |
 | Admin | Any existing user, based on current service rule. |
 
-### 5.4 Dashboard Service
+### 5.5 Dashboard Service
 
 `dashboardService.overview(user)` builds a role-scoped analytics payload.
 
@@ -233,7 +259,7 @@ Manager assignee rule:
 | `riskAlerts` | Deterministic alerts for overdue, unassigned, low completion. |
 | `aiInsights` | Deterministic role-aware insight strings used by dashboards and AI context. |
 
-### 5.5 Notification Service
+### 5.6 Notification Service
 
 | Method | Responsibility |
 |---|---|
@@ -242,7 +268,7 @@ Manager assignee rule:
 | `list` | Returns latest notifications for the current user. |
 | `markRead` | Marks one owned notification as read. |
 
-### 5.6 AI Service
+### 5.7 AI Service
 
 | Method | Context | Output |
 |---|---|---|
@@ -284,8 +310,10 @@ AI reliability controls:
 | POST | `/api/projects` | Admin, Manager | Create project. |
 | GET | `/api/projects/:projectId` | Authenticated with access | Get project. |
 | PATCH | `/api/projects/:projectId` | Admin, Manager with access | Update project. |
-| DELETE | `/api/projects/:projectId` | Admin, Manager with access | Delete project and tasks. |
+| DELETE | `/api/projects/:projectId` | Admin, Manager with access | Delete project, tasks, and chat messages. |
 | GET | `/api/projects/:projectId/activity` | Authenticated with access | Get activity timeline. |
+| GET | `/api/projects/:projectId/messages` | Authenticated with access | List project team chat messages. |
+| POST | `/api/projects/:projectId/messages` | Authenticated with access | Create project team chat message. |
 | POST | `/api/projects/:projectId/members/:memberId` | Admin, Manager with access | Add member. |
 | DELETE | `/api/projects/:projectId/members/:memberId` | Admin, Manager with access | Remove member. |
 
@@ -327,6 +355,7 @@ AI reliability controls:
 | `authSchemas.signup` | email format, name 2-80, strong password, `passwordConfirm` must match. |
 | `authSchemas.google` | credential min 20 chars. |
 | `projectSchemas.create/update` | enums for category/priority/status/deliveryMode, max arrays for goals/criteria/tags, ObjectId validation. |
+| `projectSchemas.message` | project ObjectId plus trimmed 1-1000 character chat message. |
 | `taskSchemas.create/update` | title length, status enum, ObjectId validation, date coercion. |
 | `aiSchemas` | bounded prompt lengths and project id validation. |
 | `userSchemas.updateRole` | role enum only. |
@@ -345,7 +374,7 @@ Dates use `z.coerce.date()`. MongoDB ids use a 24-character ObjectId regex.
 | `/verify-email` | `VerifyEmail` | Consumes verification token and logs user in. |
 | `/dashboard` | `Dashboard` | Chooses role-specific dashboard. |
 | `/projects` | `Projects` | Project list and rich create form. |
-| `/projects/:projectId` | `ProjectDetail` | Project health, task form, Kanban, team, AI, activity. |
+| `/projects/:projectId` | `ProjectDetail` | Project health, finish/delete controls, task form, Kanban, team chat, team, AI, activity. |
 
 ### 8.2 State Ownership
 
@@ -355,7 +384,7 @@ Dates use `z.coerce.date()`. MongoDB ids use a 24-character ObjectId regex.
 | JWT | `localStorage.workos_token` | Sent as bearer token through Axios interceptor. |
 | Socket connection | `getSocket()` | Uses JWT in socket auth payload. |
 | Dashboard overview | `Dashboard` | Passed into role-specific dashboard. |
-| Project detail | `ProjectDetail` | Project, tasks, team users, activity logs. |
+| Project detail | `ProjectDetail` | Project, tasks, team users, chat messages, activity logs. |
 | AI output | `AiPanel` / dashboard AI sidebar | Local component state. |
 | Theme/sidebar | `Layout` | Stored in localStorage for theme. |
 
@@ -369,10 +398,11 @@ Dates use `z.coerce.date()`. MongoDB ids use a 24-character ObjectId regex.
 | `ManagerDashboard` | Workload, due soon, notifications, AI suggestions, dashboard Kanban. |
 | `MemberDashboard` | Next best task, personal queue, overdue alerts, productivity stats. |
 | `Projects` | Rich project creation and project list. |
-| `ProjectDetail` | Role-aware project workspace and data orchestration. |
+| `ProjectDetail` | Role-aware project workspace, finish/reopen/delete controls, and data orchestration. |
 | `TaskForm` | Task creation plus AI description generator. |
 | `KanbanBoard` | Drag/drop task status; member drag disabled for unassigned/not-owned tasks. |
 | `MemberManager` | Add/remove project members based on role. |
+| `ProjectChat` | Real-time project discussion between manager and members. |
 | `AiPanel` | Project AI breakdown, suggestions, summary, and chat. |
 
 ## 9. Socket.IO Design
@@ -382,7 +412,7 @@ Dates use `z.coerce.date()`. MongoDB ids use a 24-character ObjectId regex.
 | `initSocket(io)` | Optionally authenticates socket token and joins user room. |
 | `project:join` | Client joins `project:{projectId}`. |
 | `project:leave` | Client leaves project room. |
-| `emitProjectEvent` | Emits task events to project room. |
+| `emitProjectEvent` | Emits task and chat events to project room. |
 | `emitUserEvent` | Emits notification events to user room. |
 
 Client event flow:
@@ -391,7 +421,8 @@ Client event flow:
 2. Socket authenticates with JWT and joins user room.
 3. Project detail joins project room.
 4. Task service emits project task events.
-5. Notification service emits user notifications.
+5. Project chat service emits `chat:message` events.
+6. Notification service emits user notifications.
 
 ## 10. Important Flows
 
@@ -475,7 +506,46 @@ sequenceDiagram
   API-->>UI: Updated task
 ```
 
-### 10.5 AI Summary
+### 10.5 Project Team Chat
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant UI
+  participant API
+  participant ChatService
+  participant DB
+  participant Socket
+  participant TeamUI
+
+  User->>UI: Send project message
+  UI->>API: POST /api/projects/:projectId/messages
+  API->>ChatService: create(projectId, message, user)
+  ChatService->>DB: Save ProjectMessage
+  ChatService->>DB: Log project.message_created
+  ChatService->>Socket: chat:message to project room
+  Socket-->>TeamUI: Append message in real time
+```
+
+### 10.6 Finish or Reopen Project
+
+```mermaid
+sequenceDiagram
+  participant Manager
+  participant API
+  participant ProjectService
+  participant TaskService
+  participant DB
+
+  Manager->>API: PATCH /api/projects/:projectId {status: completed}
+  API->>ProjectService: update(projectId, status)
+  ProjectService->>DB: Save completed status
+  Manager->>API: POST/PATCH/DELETE task while completed
+  API->>TaskService: task mutation request
+  TaskService-->>API: 400 Reopen project before changing tasks
+```
+
+### 10.7 AI Summary
 
 ```mermaid
 sequenceDiagram
@@ -521,7 +591,7 @@ sequenceDiagram
 | Future Feature | Suggested Design |
 |---|---|
 | Refresh token rotation | Add RefreshToken model, httpOnly cookies, rotation/reuse detection. |
-| Comments | Add Comment model and task detail UI. |
+| Task comments | Add task-level comment thread separate from project-level chat. |
 | File attachments | Add object storage service and attachment metadata. |
 | Redis Socket.IO adapter | Add Redis adapter for multi-instance sockets. |
 | Background jobs | Move overdue scan from interval to queue/cron. |

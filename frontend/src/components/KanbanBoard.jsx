@@ -14,8 +14,9 @@ const previewDescription = (description = "") => {
 
 const sameId = (left, right) => String(left || "") === String(right || "");
 
-export const KanbanBoard = ({ tasks, onUpdateTask, canManage = false, currentUser }) => {
+export const KanbanBoard = ({ tasks, onUpdateTask, canManage = false, currentUser, locked = false }) => {
   const canMoveTask = (task) => {
+    if (locked) return false;
     if (canManage) return true;
     return sameId(task.assignedTo?._id, currentUser?._id);
   };

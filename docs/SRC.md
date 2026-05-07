@@ -6,7 +6,7 @@
 |---|---|
 | Project | AI-Assisted Team Task Manager (WorkOS) |
 | Document Type | Software Requirements and Context (SRC) |
-| Version | 2.0 |
+| Version | 2.1 |
 | Last Updated | May 7, 2026 |
 | Primary Audience | Interviewers, engineering reviewers, maintainers |
 | Live App | https://workos-production-0d1c.up.railway.app/ |
@@ -14,7 +14,7 @@
 
 ## 1. Executive Summary
 
-WorkOS is a production-style full-stack SaaS task manager for teams. It enables users to create projects, manage teams, assign tasks, track Kanban status, receive real-time notifications, review activity logs, inspect analytics, and use AI for planning and decision support.
+WorkOS is a production-style full-stack SaaS task manager for teams. It enables users to create projects, manage teams, assign tasks, discuss project work in real-time team chat, track Kanban status, receive real-time notifications, review activity logs, inspect analytics, and use AI for planning and decision support.
 
 The project is intentionally designed to demonstrate real engineering maturity: layered backend architecture, RBAC, validation, auditability, real-time updates, role-specific dashboards, environment-driven configuration, Railway deployment, and practical AI integration through OpenRouter.
 
@@ -24,7 +24,7 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 |---|---|
 | Vision | Help teams plan and execute work through deterministic task-management workflows plus selective AI assistance. |
 | Target Users | Admins, managers, members, interviewers, engineering reviewers. |
-| Core Value | Clear team collaboration, role-specific workflow, and project-state visibility. |
+| Core Value | Clear team collaboration, role-specific workflow, project chat, and project-state visibility. |
 | Differentiator | AI is used where reasoning helps; backend owns permissions, data writes, and metrics. |
 | Deployment Goal | One live Railway URL that serves frontend, backend API, sockets, and health check. |
 
@@ -48,12 +48,13 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | G-02 | Implement secure authentication with JWT, password hashing, email verification, and Google login. | Done |
 | G-03 | Enforce role-based access through middleware and service rules. | Done |
 | G-04 | Provide separate Admin, Manager, and Member dashboards. | Done |
-| G-05 | Support real-time task and notification updates. | Done |
+| G-05 | Support real-time task, project chat, and notification updates. | Done |
 | G-06 | Capture activity logs for auditability. | Done |
 | G-07 | Provide productivity analytics and workload visibility. | Done |
 | G-08 | Integrate AI only for planning/summarization/decision support. | Done |
 | G-09 | Deploy live on Railway with no hardcoded secrets. | Done |
 | G-10 | Provide professional README, HLD, LLD, and SRC documentation. | Done |
+| G-11 | Provide project-level manager/member chat plus clear finish/delete controls. | Done |
 
 ## 5. Non-Goals and Current Limitations
 
@@ -61,7 +62,7 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 |---|---|
 | Billing/subscriptions | Not needed for architecture demonstration. |
 | File attachments | Can be added with object storage later. |
-| Comments/threaded discussions | Future task detail extension. |
+| Task-level threaded comments | Project-level chat exists; task-specific threads can be added later. |
 | Refresh token rotation | JWT bearer token currently used; refresh tokens can be added as security enhancement. |
 | Google PKCE code exchange | Current code uses Google Identity ID token verification, which is simpler for demo login. |
 | Multi-instance socket scaling | Current Socket.IO rooms are in-memory; Redis adapter can be added for horizontal scale. |
@@ -72,8 +73,8 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | Stakeholder | Need |
 |---|---|
 | Admin | Global control, user role management, project visibility, risk insights. |
-| Manager | Create projects, manage team members, assign tasks, track delivery and blockers. |
-| Member | Focused queue, assigned task status updates, overdue awareness. |
+| Manager | Create projects, manage team members, assign tasks, discuss blockers in project chat, track delivery, finish/delete projects. |
+| Member | Focused queue, assigned task status updates, project chat discussion, overdue awareness. |
 | Interviewer | Clear evidence of architecture, security, scalability, and product thinking. |
 | Maintainer | Predictable modules, validation contracts, services, docs, and deployment steps. |
 
@@ -81,9 +82,9 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 
 | Role | Capabilities | Restrictions |
 |---|---|---|
-| Admin | View all projects, create/update/delete projects, manage users, update roles, manage teams, assign tasks, use AI, view dashboards. | Cannot change their own role through role update endpoint. |
-| Manager | Create projects, manage own/access projects, add member users, create/assign/delete tasks, move tasks, use AI, view manager dashboard. | Cannot assign another project lead; cannot add admin/manager as normal project members; cannot update roles. |
-| Member | View assigned/member projects, view project context, move status of assigned tasks, use AI assistant, view member dashboard. | Cannot create/delete tasks, assign users, manage team, or move unassigned/other users' tasks. |
+| Admin | View all projects, create/update/finish/reopen/delete projects, manage users, update roles, manage teams, assign tasks, use team chat, use AI, view dashboards. | Cannot change their own role through role update endpoint. |
+| Manager | Create projects, manage own/access projects, finish/reopen/delete accessible projects, add member users, create/assign/delete tasks, move tasks, use team chat, use AI, view manager dashboard. | Cannot assign another project lead; cannot add admin/manager as normal project members; cannot update roles. |
+| Member | View assigned/member projects, view project context, use project chat, move status of assigned tasks, use AI assistant, view member dashboard. | Cannot create/delete tasks, assign users, manage team, finish/delete projects, or move unassigned/other users' tasks. |
 
 ## 8. Manager and Member Workflow
 
@@ -93,8 +94,9 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | 2 | Add member users to the project team. | See project context, goals, task board, and AI assistant. |
 | 3 | Create tasks manually or from AI suggestions. | Receive assignment notifications. |
 | 4 | Assign tasks to members with due dates. | Work on assigned tasks and move status. |
-| 5 | Review Kanban, workload, overdue alerts, AI recommendations, and activity. | Focus on next best task, personal queue, overdue alerts. |
-| 6 | Use activity log and dashboard to identify execution risk. | Use project/member AI for clarity and next action guidance. |
+| 5 | Use project chat to clarify blockers and decisions. | Reply in project chat when clarification is needed. |
+| 6 | Review Kanban, workload, overdue alerts, AI recommendations, and activity. | Focus on next best task, personal queue, overdue alerts. |
+| 7 | Finish the project when delivery is complete, or delete it if it was created by mistake. | Completed projects become read-only for execution work. |
 
 ## 9. Functional Requirements
 
@@ -131,9 +133,11 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | FR-PRJ-03 | User can list accessible projects. | Must | `projectService.list` |
 | FR-PRJ-04 | User can view accessible project detail. | Must | `projectService.get` |
 | FR-PRJ-05 | Admin/manager can update project metadata. | Must | `PATCH /api/projects/:projectId` |
-| FR-PRJ-06 | Admin/manager can delete accessible projects and related tasks. | Must | `DELETE /api/projects/:projectId` |
+| FR-PRJ-06 | Admin/manager can delete accessible projects and related tasks/messages. | Must | `DELETE /api/projects/:projectId` |
 | FR-PRJ-07 | Manager-created project uses manager as project lead. | Must | `buildCreatePayload`. |
 | FR-PRJ-08 | Admin-selected project lead must be admin/manager. | Must | `assertAdminLead`. |
+| FR-PRJ-09 | Admin/manager can finish or reopen accessible projects through project status. | Must | `PATCH /api/projects/:projectId` |
+| FR-PRJ-10 | Completed projects block task/team mutations until reopened. | Must | `taskService`, `projectService` guards. |
 
 ### 9.4 Team Management
 
@@ -144,7 +148,16 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | FR-TEAM-03 | Manager can add/remove only member users. | Must | `assertManagerMemberScope`. |
 | FR-TEAM-04 | Project members include creator and lead. | Must | Payload normalization in project service. |
 
-### 9.5 Task Management
+### 9.5 Project Collaboration
+
+| ID | Requirement | Priority | Implementation |
+|---|---|---:|---|
+| FR-COL-01 | Project members can view project team chat. | Must | `GET /api/projects/:projectId/messages` |
+| FR-COL-02 | Project members can send project team chat messages. | Must | `POST /api/projects/:projectId/messages` |
+| FR-COL-03 | Chat messages appear in real time for users in the project room. | Must | `chat:message` Socket.IO event. |
+| FR-COL-04 | Chat actions are captured in the activity log. | Should | `project.message_created` |
+
+### 9.6 Task Management
 
 | ID | Requirement | Priority | Implementation |
 |---|---|---:|---|
@@ -155,8 +168,9 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | FR-TASK-05 | Member can update only status of assigned tasks. | Must | `assertMemberCanUpdate`. |
 | FR-TASK-06 | Manager can assign tasks only to member users. | Must | `assertAssignableAssignee`. |
 | FR-TASK-07 | Task changes emit real-time project events. | Must | Socket.IO project rooms. |
+| FR-TASK-08 | Completed projects block task creation, movement, and deletion. | Must | `assertProjectOpenForTasks`. |
 
-### 9.6 Dashboard and Analytics
+### 9.7 Dashboard and Analytics
 
 | ID | Requirement | Priority | Implementation |
 |---|---|---:|---|
@@ -167,15 +181,16 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | FR-DASH-05 | Dashboard reports total, pending, done, overdue, unassigned, completion rate, workload, average completion. | Must | `dashboardService.overview`. |
 | FR-DASH-06 | Dashboard includes deterministic risk alerts and AI insight strings. | Should | `buildInsights`. |
 
-### 9.7 Real-Time Updates
+### 9.8 Real-Time Updates
 
 | ID | Requirement | Priority | Implementation |
 |---|---|---:|---|
 | FR-RT-01 | Task created/updated/deleted events update project UI without refresh. | Must | `emitProjectEvent`. |
 | FR-RT-02 | Assignment/overdue notifications are pushed to user room. | Must | `emitUserEvent`. |
 | FR-RT-03 | Project detail page joins/leaves project room. | Must | `ProjectDetail.jsx`. |
+| FR-RT-04 | Project chat messages are pushed to project room. | Must | `projectChatService.create`. |
 
-### 9.8 Notifications and Activity Log
+### 9.9 Notifications and Activity Log
 
 | ID | Requirement | Priority | Implementation |
 |---|---|---:|---|
@@ -183,10 +198,10 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | FR-NOT-02 | Scan and alert overdue assigned tasks. | Must | `notificationService.overdueScan`. |
 | FR-NOT-03 | User can list notifications. | Must | `GET /api/notifications`. |
 | FR-NOT-04 | User can mark notification read. | Should | `PATCH /api/notifications/:notificationId/read`. |
-| FR-AUD-01 | Project/task/member/AI actions are logged. | Must | `activityService.log`. |
+| FR-AUD-01 | Project/task/member/chat/AI actions are logged. | Must | `activityService.log`. |
 | FR-AUD-02 | Project activity is visible. | Must | `GET /api/projects/:projectId/activity`. |
 
-### 9.9 AI Features
+### 9.10 AI Features
 
 | ID | Feature | Input | Output | Boundary |
 |---|---|---|---|---|
@@ -209,7 +224,7 @@ The project is intentionally designed to demonstrate real engineering maturity: 
 | Validation | All write inputs are validated. | Zod schemas. |
 | Reliability | API errors have consistent shape. | `AppError`, `errorHandler`. |
 | Auditability | Important domain actions are logged. | ActivityLog collection. |
-| Realtime | Task and notification state updates without refresh. | Socket.IO rooms. |
+| Realtime | Task, team chat, and notification state updates without refresh. | Socket.IO rooms. |
 | Deployability | App runs on Railway as a single service. | Root `railway.json`, static frontend serving. |
 | Maintainability | Business logic is isolated from controllers. | Service layer. |
 | Scalability | Common queries are indexed. | Mongoose indexes. |
@@ -235,6 +250,7 @@ flowchart LR
 | User | Authenticated actor and RBAC identity. | name, email, password, role, authProvider, googleId, isEmailVerified |
 | Project | Team workspace and planning container. | name, description, category, priority, status, deliveryMode, projectManager, dates, goals, successCriteria, tags, createdBy, members |
 | Task | Trackable work item. | title, description, projectId, assignedTo, status, dueDate, completedAt |
+| ProjectMessage | Project-level team discussion. | projectId, sender, message, createdAt |
 | ActivityLog | Audit trail. | action, entityType, entityId, userId, projectId, metadata |
 | Notification | User-facing alert. | userId, projectId, taskId, type, message, read |
 
@@ -259,6 +275,7 @@ flowchart LR
 | Architecture is understandable | README, HLD, LLD, SRC clearly describe layers and flows. |
 | RBAC is meaningful | Same account cannot self-select arbitrary role; admin controls roles. |
 | Manager/member workflows are distinct | Manager plans/assigns; member executes assigned work. |
+| Project workspace is explainable | Manager creates work, members execute, both discuss in chat, manager finishes or deletes when needed. |
 | AI is practical | AI assists planning and summaries without bypassing deterministic rules. |
 | Codebase is production-shaped | Routes, controllers, services, models, middleware, validation, env config. |
 | Deployment is reproducible | Railway root deployment works from repo with env vars. |
@@ -271,6 +288,7 @@ flowchart LR
 | RBAC | `backend/src/middlewares/rbac.js`, `projectService.js`, `taskService.js` |
 | Auth and email verification | `backend/src/services/authService.js`, `emailService.js` |
 | Project schema richness | `backend/src/models/Project.js` |
+| Project chat | `backend/src/models/ProjectMessage.js`, `frontend/src/components/ProjectChat.jsx` |
 | AI boundary | `backend/src/services/aiService.js` |
 | Role dashboards | `frontend/src/components/dashboard` |
 | Project detail workflow | `frontend/src/pages/ProjectDetail.jsx` |

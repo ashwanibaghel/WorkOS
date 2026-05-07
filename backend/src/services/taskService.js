@@ -28,9 +28,16 @@ const assertAssignableAssignee = async (assignedTo, user) => {
   }
 };
 
+const assertProjectOpenForTasks = (project) => {
+  if (project.status === "completed") {
+    throw new AppError("Reopen the project before changing tasks", 400);
+  }
+};
+
 export const taskService = {
   async create(data, user) {
-    await assertProjectAccess(data.projectId, user);
+    const project = await assertProjectAccess(data.projectId, user);
+    assertProjectOpenForTasks(project);
     await assertAssignableAssignee(data.assignedTo, user);
     const task = await Task.create({
       ...data,
@@ -67,7 +74,8 @@ export const taskService = {
   async update(taskId, updates, user) {
     const task = await Task.findById(taskId);
     if (!task) throw new AppError("Task not found", 404);
-    await assertProjectAccess(task.projectId, user);
+    const project = await assertProjectAccess(task.projectId, user);
+    assertProjectOpenForTasks(project);
     assertMemberCanUpdate(task, user, updates);
     if (Object.prototype.hasOwnProperty.call(updates, "assignedTo")) {
       await assertAssignableAssignee(updates.assignedTo, user);
@@ -104,7 +112,8 @@ export const taskService = {
   async remove(taskId, user) {
     const task = await Task.findById(taskId);
     if (!task) throw new AppError("Task not found", 404);
-    await assertProjectAccess(task.projectId, user);
+    const project = await assertProjectAccess(task.projectId, user);
+    assertProjectOpenForTasks(project);
 
     if (user.role === "member") {
       throw new AppError("Members cannot delete tasks", 403);

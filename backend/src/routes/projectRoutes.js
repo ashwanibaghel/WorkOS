@@ -18,5 +18,7 @@ projectRoutes.route("/:projectId")
   .delete(canManage, validate(projectSchemas.id), projectController.remove);
 
 projectRoutes.get("/:projectId/activity", validate(projectSchemas.id), projectController.activity);
+projectRoutes.get("/:projectId/messages", validate(projectSchemas.id), projectController.messages);
+projectRoutes.post("/:projectId/messages", validate(projectSchemas.message), projectController.createMessage);
 projectRoutes.post("/:projectId/members/:memberId", canManage, validate(projectSchemas.member), projectController.addMember);
 projectRoutes.delete("/:projectId/members/:memberId", canManage, validate(projectSchemas.member), projectController.removeMember);

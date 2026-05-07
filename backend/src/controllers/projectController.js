@@ -1,4 +1,5 @@
 import { activityService } from "../services/activityService.js";
+import { projectChatService } from "../services/projectChatService.js";
 import { projectService } from "../services/projectService.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
@@ -42,5 +43,15 @@ export const projectController = {
     await projectService.get(req.params.projectId, req.user);
     const logs = await activityService.listByProject(req.params.projectId);
     res.json({ success: true, data: { logs } });
+  }),
+
+  messages: asyncHandler(async (req, res) => {
+    const messages = await projectChatService.list(req.params.projectId, req.user);
+    res.json({ success: true, data: { messages } });
+  }),
+
+  createMessage: asyncHandler(async (req, res) => {
+    const message = await projectChatService.create(req.params.projectId, req.body.message, req.user);
+    res.status(201).json({ success: true, data: { message } });
   })
 };

@@ -1,4 +1,5 @@
 import { Project } from "../models/Project.js";
+import { ProjectMessage } from "../models/ProjectMessage.js";
 import { Task } from "../models/Task.js";
 import { User } from "../models/User.js";
 import { AppError } from "../utils/AppError.js";
@@ -41,6 +42,12 @@ const assertManagerMemberScope = async (memberIds, user, { allowActor = false } 
   const hasElevatedUser = [...selectedUsers.values()].some((item) => item.role !== "member");
   if (hasElevatedUser) {
     throw new AppError("Managers can only assign member users to projects", 403);
+  }
+};
+
+const assertProjectOpenForTeam = (project) => {
+  if (project.status === "completed") {
+    throw new AppError("Reopen the project before changing team members", 400);
   }
 };
 
@@ -155,6 +162,7 @@ export const projectService = {
     const project = await Project.findOneAndDelete({ _id: projectId, ...projectQueryFor(user) });
     if (!project) throw new AppError("Project not found", 404);
     await Task.deleteMany({ projectId });
+    await ProjectMessage.deleteMany({ projectId });
     await activityService.log({
       action: "project.deleted",
       entityType: "project",
@@ -167,6 +175,9 @@ export const projectService = {
 
   async addMember(projectId, memberId, user) {
     await assertManagerMemberScope([memberId], user);
+    const existing = await Project.findOne({ _id: projectId, ...projectQueryFor(user) });
+    if (!existing) throw new AppError("Project not found", 404);
+    assertProjectOpenForTeam(existing);
     const project = await Project.findOneAndUpdate(
       { _id: projectId, ...projectQueryFor(user) },
       { $addToSet: { members: memberId } },
@@ -186,6 +197,9 @@ export const projectService = {
 
   async removeMember(projectId, memberId, user) {
     await assertManagerMemberScope([memberId], user);
+    const existing = await Project.findOne({ _id: projectId, ...projectQueryFor(user) });
+    if (!existing) throw new AppError("Project not found", 404);
+    assertProjectOpenForTeam(existing);
     const project = await Project.findOneAndUpdate(
       { _id: projectId, ...projectQueryFor(user) },
       { $pull: { members: memberId } },

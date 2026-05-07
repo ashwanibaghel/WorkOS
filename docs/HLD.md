@@ -6,7 +6,7 @@
 |---|---|
 | Project | WorkOS - AI-Assisted Team Task Manager |
 | Document | High-Level Design (HLD) |
-| Version | 2.0 |
+| Version | 2.1 |
 | Last Updated | May 7, 2026 |
 | Live App | https://workos-production-0d1c.up.railway.app/ |
 | Repository | https://github.com/ashwanibaghel/WorkOS |
@@ -21,11 +21,11 @@ WorkOS is designed as a production-style SaaS task manager, not a basic CRUD app
 
 | Layer | Technology | Responsibility |
 |---|---|---|
-| Browser Client | React, Vite, React Router, Socket.IO Client | UI, auth state, role dashboards, project/task views, Kanban, AI interactions. |
+| Browser Client | React, Vite, React Router, Socket.IO Client | UI, auth state, role dashboards, project/task views, Kanban, project team chat, AI interactions. |
 | API Runtime | Node.js, Express | REST API, validation, auth, RBAC, CORS, rate limiting, error handling. |
-| Business Layer | Service modules | Project/task/user/notification/activity/analytics/AI orchestration. |
+| Business Layer | Service modules | Project/task/project-chat/user/notification/activity/analytics/AI orchestration. |
 | Persistence | MongoDB Atlas, Mongoose | Durable storage, relationships, indexes, schema constraints. |
-| Real-time | Socket.IO | Project task events and user notification events. |
+| Real-time | Socket.IO | Project task events, project chat events, and user notification events. |
 | AI Provider | OpenRouter Chat Completions API | Structured reasoning outputs for planning and summaries. |
 | Hosting | Railway | Single service builds frontend and serves it through Express in production. |
 
@@ -63,7 +63,7 @@ flowchart TB
     AuthContext["Auth Context + JWT"]
     Dashboards["Admin / Manager / Member Dashboards"]
     Projects["Projects Page"]
-    ProjectDetail["Project Detail + Kanban"]
+    ProjectDetail["Project Detail + Kanban + Team Chat"]
     AIPanel["AI Panel"]
     SocketClient["Socket.IO Client"]
   end
@@ -169,9 +169,12 @@ flowchart LR
 | View accessible projects | Yes | Yes | Yes |
 | Create project | Yes | Yes | No |
 | Change project lead | Yes | No | No |
+| Finish/reopen project | Yes | Yes, with access | No |
+| Delete project | Yes | Yes, with access | No |
 | Add/remove project members | Yes | Member users only | No |
 | Create/assign/delete tasks | Yes | Yes | No |
 | Update task status | Yes | Yes | Assigned task only |
+| Use project team chat | Yes | Yes | Yes, with access |
 | Update user roles | Yes | No | No |
 | Use AI assistant | Yes | Yes | Yes |
 
@@ -192,6 +195,7 @@ Each dashboard receives the same `/api/dashboard` overview payload but renders d
 | `task:created` | `project:{projectId}` | `taskService.create` | Project detail page Kanban board. |
 | `task:updated` | `project:{projectId}` | `taskService.update` | Project detail page Kanban board. |
 | `task:deleted` | `project:{projectId}` | `taskService.remove` | Project detail page Kanban board. |
+| `chat:message` | `project:{projectId}` | `projectChatService.create` | Project detail team chat panel. |
 | `notification:new` | `user:{userId}` | `notificationService` | Layout notification dropdown. |
 
 Socket connections include JWT in the handshake when available. Authenticated sockets automatically join their user room for notifications. Project detail pages join and leave project rooms explicitly.
@@ -228,7 +232,9 @@ erDiagram
   USER }o--o{ PROJECT : member_of
   USER ||--o{ PROJECT : leads
   PROJECT ||--o{ TASK : contains
+  PROJECT ||--o{ PROJECT_MESSAGE : contains
   USER ||--o{ TASK : assigned
+  USER ||--o{ PROJECT_MESSAGE : sends
   PROJECT ||--o{ ACTIVITY_LOG : has
   USER ||--o{ ACTIVITY_LOG : performs
   USER ||--o{ NOTIFICATION : receives
@@ -240,7 +246,8 @@ erDiagram
 | User | Auth identity, role, local/Google provider details, email verification state. |
 | Project | Workspace with metadata, lead, members, goals, success criteria, tags. |
 | Task | Assignable work item with status, due date, completion timestamp. |
-| ActivityLog | Audit trail for project/task/member/AI events. |
+| ProjectMessage | Project-level manager/member discussion stored for team context. |
+| ActivityLog | Audit trail for project/task/member/chat/AI events. |
 | Notification | User-facing alerts for assignment and overdue work. |
 
 ## 13. Security Architecture
@@ -264,7 +271,7 @@ erDiagram
 | API horizontal scaling | JWT stateless API. | Multiple Railway replicas behind load balancer. |
 | Socket.IO scaling | In-memory rooms in single service. | Redis adapter and sticky sessions. |
 | Overdue scan | In-process hourly interval. | Railway cron, BullMQ, or managed scheduler. |
-| Mongo queries | Indexes on project, members, task status, due date, activity logs. | Query-plan-based compound indexes. |
+| Mongo queries | Indexes on project, members, task status, due date, project messages, activity logs. | Query-plan-based compound indexes. |
 | AI latency | Synchronous endpoint calls. | Async job queue for long-running summaries. |
 | Email delivery | SMTP provider through Nodemailer. | Provider abstraction for SES/SendGrid templates. |
 | Audit growth | ActivityLog collection. | Archival policy and TTL/cold storage if needed. |
@@ -275,7 +282,7 @@ erDiagram
 |---|---|
 | Request logging | Morgan. |
 | Health endpoint | `/health` for Railway and manual checks. |
-| Domain audit | `ActivityLog` for project, task, member, AI events. |
+| Domain audit | `ActivityLog` for project, task, member, chat, AI events. |
 | User alerts | `Notification` collection plus real-time socket event. |
 | Error consistency | `AppError` and centralized error middleware. |
 
@@ -289,4 +296,5 @@ erDiagram
 | AI is isolated in `aiService` | Makes the AI boundary reviewable and replaceable. |
 | First user admin | Removes the need for seed scripts during demo setup. |
 | Managers can add only members | Prevents one manager from elevating access by adding another privileged user. |
+| Completed projects lock execution changes | Finish means the workspace is closed for task/team mutation until it is reopened. |
 | Frontend production API is same-origin | Avoids hardcoded deployed URLs and localhost mistakes on Railway. |

@@ -84,6 +84,10 @@ export const projectSchemas = {
   }),
   member: z.object({
     params: z.object({ projectId: objectId, memberId: objectId })
+  }),
+  message: z.object({
+    params: z.object({ projectId: objectId }),
+    body: z.object({ message: z.string().trim().min(1).max(1000) })
   })
 };
 
