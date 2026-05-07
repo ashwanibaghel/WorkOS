@@ -1884,6 +1884,8 @@ body.light-mode .kanban-column {
 }
 
 .task-card {
+  display: grid;
+  gap: 10px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
@@ -1918,7 +1920,7 @@ body.light-mode .task-card:hover {
 }
 
 .task-card h3 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 16px;
   overflow-wrap: anywhere;
 }
@@ -1937,9 +1939,40 @@ body.light-mode .task-card:hover {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 12px;
   color: #475467;
   font-size: 12px;
+}
+
+.task-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-status-actions button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(129, 140, 248, 0.28);
+  border-radius: 8px;
+  background: rgba(129, 140, 248, 0.12);
+  color: #e0e7ff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.task-status-actions button:hover {
+  border-color: rgba(129, 140, 248, 0.5);
+  background: rgba(129, 140, 248, 0.2);
+}
+
+body.light-mode .task-status-actions button {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #3730a3;
 }
 
 .ai-panel {
@@ -2014,23 +2047,40 @@ body.light-mode .task-card:hover {
 .project-chat-list {
   display: grid;
   gap: 12px;
-  max-height: 340px;
+  min-height: 280px;
+  max-height: 420px;
   overflow: auto;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    rgba(0, 0, 0, 0.14);
+  background-size: 24px 24px;
 }
 
 .project-chat-message {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 10px;
-  max-width: 820px;
+  max-width: min(78%, 720px);
+  align-items: end;
 }
 
 .project-chat-message.mine {
   justify-self: end;
+  grid-template-columns: minmax(0, 1fr) 34px;
+}
+
+.project-chat-message.mine .project-chat-avatar {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.project-chat-message.mine .project-chat-body {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .project-chat-avatar {
@@ -2047,9 +2097,9 @@ body.light-mode .task-card:hover {
 }
 
 .project-chat-message p {
-  margin: 5px 0 0;
-  padding: 10px 12px;
-  border-radius: 10px;
+  margin: 6px 0 0;
+  padding: 11px 13px;
+  border-radius: 12px 12px 12px 4px;
   background: rgba(255, 255, 255, 0.06);
   color: #f4f4f5;
   line-height: 1.5;
@@ -2057,7 +2107,8 @@ body.light-mode .task-card:hover {
 }
 
 .project-chat-message.mine p {
-  background: rgba(129, 140, 248, 0.18);
+  border-radius: 12px 12px 4px 12px;
+  background: rgba(129, 140, 248, 0.2);
 }
 
 .project-chat-meta {
@@ -2073,8 +2124,46 @@ body.light-mode .task-card:hover {
   color: #fff;
 }
 
+.project-chat-meta em {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.16);
+  color: #c7d2fe;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .project-chat-meta span {
   text-transform: capitalize;
+}
+
+.project-chat-message.mine .project-chat-meta {
+  justify-content: flex-end;
+}
+
+body.light-mode .project-chat-list {
+  border-color: #e2e8f0;
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+    #f8fafc;
+  background-size: 24px 24px;
+}
+
+body.light-mode .project-chat-message p {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e2e8f0;
+}
+
+body.light-mode .project-chat-message.mine p {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+body.light-mode .project-chat-meta strong {
+  color: #111827;
 }
 
 .project-chat-form {

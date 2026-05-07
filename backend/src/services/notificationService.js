@@ -22,6 +22,23 @@ export const notificationService = {
     });
   },
 
+  async statusChange({ userId, projectId, taskId, taskTitle, actorName, status }) {
+    if (!userId) return null;
+    const statusLabel = {
+      "todo": "Todo",
+      "in-progress": "In Progress",
+      "done": "Done"
+    }[status] || status;
+
+    return notify({
+      userId,
+      projectId,
+      taskId,
+      type: "status",
+      message: `${actorName} moved "${taskTitle}" to ${statusLabel}.`
+    });
+  },
+
   async overdueScan() {
     const overdueTasks = await Task.find({
       dueDate: { $lt: new Date() },

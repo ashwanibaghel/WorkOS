@@ -82,6 +82,7 @@ export const taskService = {
     }
 
     const previousAssignee = task.assignedTo ? String(task.assignedTo) : null;
+    const previousStatus = task.status;
     Object.assign(task, updates);
     if (updates.status === "done" && !task.completedAt) task.completedAt = new Date();
     if (updates.status && updates.status !== "done") task.completedAt = null;
@@ -95,6 +96,20 @@ export const taskService = {
         taskId: task._id,
         taskTitle: task.title
       });
+    }
+
+    if (updates.status && updates.status !== previousStatus) {
+      const managerId = project.projectManager?._id || project.projectManager || project.createdBy?._id || project.createdBy;
+      if (managerId && String(managerId) !== String(user._id)) {
+        await notificationService.statusChange({
+          userId: managerId,
+          projectId: task.projectId,
+          taskId: task._id,
+          taskTitle: task.title,
+          actorName: user.name,
+          status: task.status
+        });
+      }
     }
 
     await activityService.log({

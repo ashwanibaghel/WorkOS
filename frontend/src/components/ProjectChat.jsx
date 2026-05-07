@@ -58,12 +58,14 @@ export const ProjectChat = ({ projectId, currentUser }) => {
         {messages.length === 0 && <p className="muted">No messages yet. Start the project discussion here.</p>}
         {messages.map((message) => {
           const mine = String(message.sender?._id) === String(currentUser?._id);
+          const senderName = message.sender?.name || "User";
           return (
             <article className={`project-chat-message ${mine ? "mine" : ""}`} key={message._id}>
               <div className="project-chat-avatar">{message.sender?.name?.[0] || "?"}</div>
-              <div>
+              <div className="project-chat-body">
                 <div className="project-chat-meta">
-                  <strong>{mine ? "You" : message.sender?.name || "User"}</strong>
+                  <strong>{senderName}</strong>
+                  {mine && <em>You</em>}
                   <span>{message.sender?.role || "member"}</span>
                   <small>{format(new Date(message.createdAt), "MMM d, HH:mm")}</small>
                 </div>

@@ -1,5 +1,6 @@
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import { formatDistanceToNow } from "date-fns";
+import { CheckCircle2, PlayCircle, RotateCcw } from "lucide-react";
 
 const columns = [
   { id: "todo", title: "Todo" },
@@ -26,6 +27,19 @@ export const KanbanBoard = ({ tasks, onUpdateTask, canManage = false, currentUse
     const task = tasks.find((item) => item._id === draggableId);
     if (!task || !canMoveTask(task)) return;
     onUpdateTask(draggableId, { status: destination.droppableId });
+  };
+
+  const statusActionsFor = (task) => {
+    if (!canMoveTask(task)) return [];
+    if (task.status === "todo") return [{ status: "in-progress", label: "Start", icon: <PlayCircle size={14} /> }];
+    if (task.status === "in-progress") return [{ status: "done", label: "Done", icon: <CheckCircle2 size={14} /> }];
+    return [{ status: "in-progress", label: "Reopen", icon: <RotateCcw size={14} /> }];
+  };
+
+  const updateStatus = (event, taskId, status) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onUpdateTask(taskId, { status });
   };
 
   return (
@@ -56,6 +70,21 @@ export const KanbanBoard = ({ tasks, onUpdateTask, canManage = false, currentUse
                             <span>{task.assignedTo?.name || "Unassigned"}</span>
                             {task.dueDate && <span>Due {formatDistanceToNow(new Date(task.dueDate), { addSuffix: true })}</span>}
                           </div>
+                          {statusActionsFor(task).length > 0 && (
+                            <div className="task-status-actions">
+                              {statusActionsFor(task).map((action) => (
+                                <button
+                                  key={action.status}
+                                  type="button"
+                                  onClick={(event) => updateStatus(event, task._id, action.status)}
+                                  onPointerDown={(event) => event.stopPropagation()}
+                                >
+                                  {action.icon}
+                                  {action.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </article>
                       )}
                     </Draggable>

@@ -202,7 +202,7 @@ export const ProjectDetail = () => {
           <div className="section-title-row">
             <div>
               <h2>Task board</h2>
-              <p>Todo to In Progress to Done. Members can move only their assigned tasks.</p>
+              <p>Members update their own assigned tasks. Managers see every change in real time.</p>
             </div>
             <span className="board-count"><BarChart3 size={14} /> {tasks.length} tasks</span>
           </div>
